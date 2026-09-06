@@ -1,4 +1,5 @@
 # Brand Integrity Index
+
 ## Measurement Specification v0.1
 
 **Status:** Pilot specification  
@@ -1118,3 +1119,175 @@ an advertisement will appear.
 That possibility is the central research objective of the Brand Integrity
 Index.
 
+---
+
+# 14. Pilot 01 Comparative Research Design
+
+Pilot 01 will compare three distinct media groups using the same measurement
+methodology defined in this specification.
+
+The objective is not to classify one group as inherently good or bad, but to
+observe whether measurable differences appear across different publishing and
+advertising models.
+
+## 14.1 Group A — Premium / PMP Media
+
+Group A will consist of approximately ten premium media properties selected
+from publicly documented premium media or PMP-related publisher groups in
+Japan.
+
+The group is expected to include established newspaper, magazine, business,
+and digital publishing brands.
+
+Selection criteria will include:
+
+- publicly identifiable publisher or operator
+- ordinary editorial article pages available for measurement
+- public evidence of participation in a premium media or PMP-related
+  initiative
+- sufficient accessibility for repeatable browser-based observation
+- inclusion of multiple publishing categories where practical
+
+Membership in this group does not imply that every measured page is currently
+served through a PMP transaction.
+
+## 14.2 Group B — Summary / Aggregation Media
+
+Group B will consist of approximately six publicly accessible summary,
+aggregation, or curation-style media properties.
+
+These properties are included as a comparative media group because their
+publishing models, editorial structures, and advertising environments may
+differ materially from established premium media.
+
+Pilot 01 will not characterize these properties as unsafe, fraudulent,
+low-quality, or advertiser-blocked unless independently verifiable evidence
+supports such a conclusion.
+
+The comparison will focus only on observable signals defined by this
+specification.
+
+## 14.3 Group C — Experimental Advertising Model
+
+Group C will include a Y&H-operated property implementing the experimental
+"One Page × One Advertiser" advertising model.
+
+This group will be evaluated using exactly the same measurement methodology as
+Groups A and B.
+
+It will not be treated as the definition of a successful result.
+
+The purpose is to determine whether a materially different advertising model
+produces measurable differences in advertising density, advertiser count,
+content interruption, viewport obstruction, and other observable signals.
+
+---
+
+## 14.4 Pre-Registered Research Hypotheses
+
+The following hypotheses are defined before Pilot 01 measurement begins.
+
+### H1 — Publisher Integrity Hypothesis
+
+Premium / PMP media are expected to exhibit stronger observable Behavioral
+Integrity and Data Integrity signals than summary / aggregation media.
+
+Possible areas of difference include:
+
+- operator identity
+- editorial policies
+- correction policies
+- advertising policies
+- privacy policies
+- accountability mechanisms
+- ads.txt and related supply-chain transparency
+- originator and provenance technologies where present
+
+This hypothesis concerns observable and verifiable signals only.
+
+It does not assert that the content published by any media property is true,
+false, accurate, inaccurate, trustworthy, or untrustworthy.
+
+### H2 — Advertising Experience Hypothesis
+
+Despite expected differences in Behavioral Integrity and Data Integrity,
+Premium / PMP media may show substantially smaller differences from summary /
+aggregation media in observable advertising experience.
+
+The comparison will focus on:
+
+- Ad-to-Content Ratio
+- Ad Density
+- Advertiser Count
+- Ad Unit Count
+- Viewport Obstruction
+- Intrusive Ad Formats
+- Content Interruption
+
+The hypothesis is that strong publisher-level integrity signals do not
+necessarily imply a less intrusive or less complex advertising experience.
+
+### H3 — Advertising Model Hypothesis
+
+A One Page × One Advertiser model may produce a measurably different
+advertising experience compared with both Premium / PMP media and summary /
+aggregation media.
+
+Possible measurable differences include:
+
+- fewer distinct advertisers per article
+- fewer ad units
+- lower advertising density
+- fewer in-content interruptions
+- lower viewport obstruction
+- fewer intrusive ad formats
+
+Where independently available, engagement metrics may also be examined.
+
+This hypothesis does not assume that fewer ads automatically produce better
+business outcomes or better user outcomes.
+
+Pilot 01 is intended to test whether measurable differences exist.
+
+---
+
+## 14.5 Interpretation Principle
+
+Pilot 01 must distinguish between:
+
+1. publisher integrity
+2. information provenance
+3. advertising experience
+4. advertising effectiveness
+
+These dimensions must not be treated as interchangeable.
+
+A media property may demonstrate strong publisher identity, editorial
+governance, and provenance signals while simultaneously presenting a highly
+dense or intrusive advertising environment.
+
+Conversely, a low-density advertising environment does not by itself
+demonstrate strong editorial or provenance integrity.
+
+The purpose of the Brand Integrity Index research is to make these differences
+observable rather than collapse them into a single reputation judgment.
+
+---
+
+## 14.6 Comparative Research Question
+
+Pilot 01 will therefore examine the following broader question:
+
+> **Can measurable Brand Integrity signals reveal meaningful differences
+> between publisher integrity and advertising experience across different
+> media and advertising models?**
+
+A related practical question is:
+
+> **Can an advertising model based on fewer, more clearly attributable
+> advertiser relationships produce a measurably different advertising
+> experience without relying on reputation alone?**
+
+The results of Pilot 01 will be used to determine whether these hypotheses
+should be supported, rejected, or revised in future versions of the research.
+```
