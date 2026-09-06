@@ -1024,6 +1024,7 @@ Sensitive or unnecessary user information must not be collected.
     }
   }
 }
+```
 
 # 10. Reporting
 
@@ -1043,15 +1044,15 @@ of observed measurements.
 
 Example:
 
-| Signal | Result |
-|---|---:|
-| Distinct advertisers | Median 5, range 3–8 |
-| Ad units | Median 8 |
-| Ad-to-content ratio | 26.7% |
-| Mobile ad density | 24.7% |
-| Content interruptions | 1.25 / 1,000 characters |
-| Maximum viewport obstruction | 12.3% |
-| Sticky advertising | Observed |
+| Signal                       |                  Result |
+| ---------------------------- | ----------------------: |
+| Distinct advertisers         |     Median 5, range 3–8 |
+| Ad units                     |                Median 8 |
+| Ad-to-content ratio          |                   26.7% |
+| Mobile ad density            |                   24.7% |
+| Content interruptions        | 1.25 / 1,000 characters |
+| Maximum viewport obstruction |                   12.3% |
+| Sticky advertising           |                Observed |
 
 ---
 
@@ -1290,4 +1291,3 @@ A related practical question is:
 
 The results of Pilot 01 will be used to determine whether these hypotheses
 should be supported, rejected, or revised in future versions of the research.
-```
