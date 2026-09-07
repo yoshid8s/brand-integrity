@@ -1,0 +1,25 @@
+{
+  "requestedUrl": "https://style.yh-inc.jp/ジジイのsummer-white-shirt-styles-3-looks/",
+  "httpStatus": 200,
+  "startedAt": "2026-09-07T06:07:56.436Z",
+  "endedAt": "2026-09-07T06:08:01.835Z",
+  "durationMs": 5399,
+  "environment": {
+    "playwrightVersion": "Version 1.63.0",
+    "browserName": "chromium",
+    "browserVersion": "153.0.8010.12",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+    "headless": false,
+    "locale": "ja-JP",
+    "timezoneId": "Asia/Tokyo",
+    "deviceScaleFactor": 1,
+    "waitAfterLoadMs": 5000
+  },
+  "title": "ジジイのSummer White Shirt Styles : 3 looks | JiJi Style",
+  "finalUrl": "https://style.yh-inc.jp/%E3%82%B8%E3%82%B8%E3%82%A4%E3%81%AEsummer-white-shirt-styles-3-looks/",
+  "viewportWidth": 1440,
+  "viewportHeight": 900,
+  "documentWidth": 1440,
+  "documentHeight": 7579,
+  "bodyTextLength": 5370
+}

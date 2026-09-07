@@ -8,7 +8,7 @@ const url =
 
 const outDir = "evidence/pilot-01/C01/feasibility";
 const waitAfterLoadMs = 5000;
-const headless = true;
+const headless = !process.argv.includes("--headed");
 
 await fs.mkdir(outDir, { recursive: true });
 
@@ -74,13 +74,13 @@ const output = {
 };
 
 await fs.writeFile(
-  path.join(outDir, "c01-01-desktop.json"),
+  path.join(outDir, headless ? "c01-01-desktop.json" : "c01-01-desktop-headed.json"),
   JSON.stringify(output, null, 2) + "\n",
   "utf8"
 );
 
 await page.screenshot({
-  path: path.join(outDir, "c01-01-desktop.png"),
+  path: path.join(outDir, headless ? "c01-01-desktop.png" : "c01-01-desktop-headed.png"),
   fullPage: true,
 });
 
