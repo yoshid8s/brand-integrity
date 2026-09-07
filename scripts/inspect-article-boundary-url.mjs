@@ -41,34 +41,67 @@ const result = await page.evaluate(() => {
     "main",
   ];
 
+  const knownCandidates = selectors.map((selector) => {
+    const el = document.querySelector(selector);
+
+    if (!el) {
+      return {
+        selector,
+        found: false,
+      };
+    }
+
+    const r = el.getBoundingClientRect();
+
+    return {
+      selector,
+      found: true,
+      tag: el.tagName,
+      id: el.id || null,
+      className: el.className || null,
+      top: Math.round(r.top + window.scrollY),
+      bottom: Math.round(r.bottom + window.scrollY),
+      height: Math.round(r.height),
+      textLength: (el.innerText || "").length,
+    };
+  });
+
+  const root = document.querySelector("main") || document.body;
+
+  const structuralCandidates = [...root.querySelectorAll("article, section, div")]
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const textLength = (el.innerText || "").trim().length;
+
+      return {
+        tag: el.tagName,
+        id: el.id || null,
+        className: typeof el.className === "string" ? el.className || null : null,
+        top: Math.round(r.top + window.scrollY),
+        bottom: Math.round(r.bottom + window.scrollY),
+        height: Math.round(r.height),
+        width: Math.round(r.width),
+        textLength,
+      };
+    })
+    .filter((item) =>
+      item.height >= 300 &&
+      item.textLength >= 200
+    )
+    .sort((a, b) => {
+      if (b.textLength !== a.textLength) {
+        return b.textLength - a.textLength;
+      }
+      return b.height - a.height;
+    })
+    .slice(0, 30);
+
   return {
     title: document.title,
     finalUrl: location.href,
     documentHeight: document.documentElement.scrollHeight,
-    candidates: selectors.map((selector) => {
-      const el = document.querySelector(selector);
-
-      if (!el) {
-        return {
-          selector,
-          found: false,
-        };
-      }
-
-      const r = el.getBoundingClientRect();
-
-      return {
-        selector,
-        found: true,
-        tag: el.tagName,
-        id: el.id || null,
-        className: el.className || null,
-        top: Math.round(r.top + window.scrollY),
-        bottom: Math.round(r.bottom + window.scrollY),
-        height: Math.round(r.height),
-        textLength: (el.innerText || "").length,
-      };
-    }),
+    candidates: knownCandidates,
+    structuralCandidates,
   };
 });
 
