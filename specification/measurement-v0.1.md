@@ -927,25 +927,68 @@ The selection method must be documented.
 
 ## 8.4 Repeated advertising observations
 
-Because digital advertising delivery is dynamic, advertising-experience
+Because digital advertising delivery is dynamic, Advertising Experience
 measurements should use repeated page loads.
 
-Initial Pilot 01 target:
+The frozen Pilot 01 sample contains:
 
-- 3 articles per media property
+- 17 media properties
+- 3 selected articles per media property
+- 51 selected articles in total
+
+The initial design proposed:
+
 - 10 desktop observations per article
 - 10 mobile observations per article
 
-This produces:
+If retained unchanged, this would produce:
 
 **60 advertising observations per media property**
 
-and approximately:
+and:
 
-**600 observations across 10 media properties**
+**1,020 advertising observations across 17 media properties**
 
-The number may be adjusted after initial feasibility testing, but any change
-must be documented.
+The final repetition count must be determined after feasibility testing.
+
+This is necessary because repeated browser observations may generate
+advertising impressions or otherwise interact with publisher and advertising
+infrastructure. The research should use the minimum repetition count
+necessary to produce useful comparative evidence.
+
+Any change to the repetition count must be documented before full-scale
+measurement begins.
+
+### 8.4.1 Scroll-dependent observation
+
+A single Advertising Experience observation must represent a controlled
+reading session rather than only the initial page-load state.
+
+Feasibility testing showed that page geometry can change materially as the
+page is scrolled because images, embeds, advertisements, and other resources
+may use lazy loading.
+
+Accordingly, each observation should follow a documented sequence such as:
+
+1. load the selected article
+2. wait for the initial page state to stabilize
+3. record the initial viewport state
+4. scroll through the article using a consistent procedure
+5. allow scroll-triggered resources to load
+6. sample defined viewport states during the reading path
+7. record the stabilized document geometry and Advertising Experience signals
+
+Measurements must not assume that the document height or element geometry
+observed immediately after page load represents the complete reading
+experience.
+
+The scroll procedure, scroll step or sampling positions, wait interval, and
+stabilization rule must be fixed before full-scale Pilot 01 measurement and
+applied consistently across Groups A, B, and C.
+
+The measurement process must not click advertisements, intentionally trigger
+advertising interactions, bypass access controls, or perform interactions
+that are unnecessary for ordinary reading.
 
 ## 8.5 Environment recording
 
@@ -957,12 +1000,17 @@ Each observation should record:
 - viewport dimensions
 - device category
 - user agent
-- browser version
+- browser name and version
+- browser execution mode where relevant
 - locale
+- timezone
 - measurement region where known
+- device scale factor where applicable
 - cookie/consent state
 - authentication state
-- page-load duration
+- initial page-load duration
+- post-load wait interval
+- scroll procedure or sampling profile
 - measurement tool version
 
 ## 8.6 Evidence capture
@@ -979,9 +1027,11 @@ Evidence may include:
 - detected ad destination domains
 - structured measurement logs
 
-Sensitive or unnecessary user information must not be collected.
+Large binary evidence such as full-page screenshots does not need to be
+stored directly in the Git repository, provided that its storage location
+and relationship to the structured observation record can be preserved.
 
----
+Sensitive or unnecessary user information must not be collected.
 
 # 9. Example Observation Record
 
