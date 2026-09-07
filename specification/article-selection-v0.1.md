@@ -474,6 +474,15 @@ A replacement candidate must:
 - be technically accessible using the ordinary research environment
 - not be selected because of its observed advertising characteristics
 
+For the purposes of replacement eligibility, ordinary technical accessibility
+requires that the media property can be reached through a browser without
+overriding a TLS/certificate warning or deliberately downgrading from a secure
+HTTPS connection to HTTP.
+
+A property is not classified as unsafe solely because it lacks ordinary HTTPS
+access. Such a case should be recorded as a technical eligibility exclusion,
+not as a Safety Exclusion under Section 15.
+
 ## 16.2 Selection Order
 
 Replacement candidates must be evaluated according to a documented,
