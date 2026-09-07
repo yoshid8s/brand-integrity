@@ -444,7 +444,100 @@ behavior, or investigate potentially unsafe destinations as part of Pilot 01.
 
 ---
 
-# 16. Reproducibility and Limitations
+# 16. Replacement Media Procedure
+
+When an entire media property is excluded from Pilot 01 after the original
+media sample has been fixed, a replacement property may be selected to
+preserve the planned comparison-group size.
+
+The replacement must be selected without reference to advertising density,
+advertising quality, Brand Integrity signals, or the expected comparative
+result.
+
+## 16.1 Replacement Pool
+
+A replacement must belong to the same comparison group as the excluded
+property.
+
+For Group B, the replacement pool consists of publicly accessible Japanese
+summary or aggregation media properties that satisfy the original Group B
+selection concept.
+
+A replacement candidate must:
+
+- primarily publish summary, aggregation, curation, or commentary posts based
+  on material originating elsewhere
+- provide a publicly accessible stream of ordinary article posts
+- be measurable without authentication or subscription
+- represent a distinct media property from the properties already included
+  in Pilot 01
+- be technically accessible using the ordinary research environment
+- not be selected because of its observed advertising characteristics
+
+## 16.2 Selection Order
+
+Replacement candidates must be evaluated according to a documented,
+predefined ordering that does not use Pilot 01 measurement results.
+
+The candidate pool and ordering must be recorded before detailed advertising
+measurement of any replacement candidate begins.
+
+The first candidate in that ordering that satisfies the eligibility and
+safety requirements must be selected.
+
+If a candidate is excluded, the reason must be recorded and the next
+candidate evaluated.
+
+## 16.3 Safety
+
+The Safety Exclusion procedure in Section 15 applies equally to replacement
+candidates.
+
+A researcher must not reproduce a previously observed unsafe event merely to
+compare a replacement candidate with the excluded property.
+
+## 16.4 No Matching by Outcome
+
+The replacement is not required to reproduce the advertising characteristics,
+traffic scale, monetization structure, or observed behavior of the excluded
+property.
+
+In particular, the replacement must not be selected because it appears to
+have:
+
+- many or few advertisements
+- intrusive advertising
+- a complex or simple advertising supply chain
+- weak or strong publisher policies
+- particular ads.txt or sellers.json characteristics
+- any characteristic expected to support or weaken the research hypothesis
+
+The purpose of replacement is to preserve the planned comparison-group size,
+not to reproduce or strengthen the excluded observation.
+
+## 16.5 Documentation
+
+The replacement record must include:
+
+- excluded media ID
+- replacement media ID
+- replacement media property
+- measurement domain
+- candidate-pool source
+- candidate position
+- selection timestamp
+- eligibility status
+- exclusion reason, where applicable
+- notes
+
+The excluded media property must remain in the Pilot 01 registry and must not
+be deleted or overwritten.
+
+The selected replacement must receive a new media ID.
+
+---
+
+# 17. Reproducibility and Limitations
 
 Pilot 01 represents a time-bounded observation.
 
@@ -470,7 +563,7 @@ the environment in which advertising observations are made.
 
 ---
 
-# 17. Research Integrity Principle
+# 18. Research Integrity Principle
 
 The article sample must be determined without knowledge of the final
 comparative results.
