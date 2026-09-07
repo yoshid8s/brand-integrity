@@ -135,7 +135,23 @@ reading experience.
 
 The reason must be recorded when a candidate is excluded.
 
-## 6.2 Sponsored or Advertorial Content
+## 6.2 Advertising Access Gates
+
+Exclude a candidate when access to sufficient article content requires
+completion of an advertising, rewarded-ad, or similar access-gate
+interaction before the article can be normally read.
+
+An advertising access gate does not by itself constitute a Safety Exclusion
+or evidence of poor advertising quality.
+
+The exclusion is based on measurement feasibility: completing the required
+interaction would alter the observation environment before advertising
+measurement begins.
+
+Researchers must not complete the advertising interaction solely to make an
+otherwise inaccessible candidate eligible.
+
+## 6.3 Sponsored or Advertorial Content
 
 Exclude content clearly identified as:
 
@@ -150,7 +166,7 @@ Exclude content clearly identified as:
 Pilot 01 is intended to measure advertising surrounding ordinary editorial
 content rather than advertising that is itself the primary content.
 
-## 6.3 Special Experiences
+## 6.4 Special Experiences
 
 Exclude:
 
@@ -164,7 +180,7 @@ Exclude:
 - shopping pages
 - product catalog pages
 
-## 6.4 Non-Article Pages
+## 6.5 Non-Article Pages
 
 Exclude:
 
@@ -177,7 +193,7 @@ Exclude:
 - policy pages
 - index pages
 
-## 6.5 Technical Failure
+## 6.6 Technical Failure
 
 Exclude a candidate when technical conditions prevent a valid measurement,
 including:
