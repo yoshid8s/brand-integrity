@@ -667,6 +667,39 @@ A1 compares advertising area with editorial content area.
 A2 measures advertising occupancy across the reading experience, including
 the spatial distribution of advertising while scrolling through the article.
 
+### Article Reading Region
+
+For Advertising Experience measurements A1-A7, the **Article Reading Region**
+defines the portion of the page through which an ordinary user progresses
+while consuming the selected article.
+
+The Article Reading Region must be identified and documented for each media
+property before full-scale measurement begins.
+
+Boundary identification should use the following order of preference:
+
+1. semantic article structure, such as `article` or an explicit article-body
+   attribute
+2. a stable structural selector representing the article-reading region
+3. a documented media-specific selector
+
+A media-specific selector is permitted when the publisher does not expose a
+suitable semantic or stable generic article structure.
+
+The selected region may include advertisements, images, embeds, and other
+elements encountered within the normal article-reading flow. Such elements
+must not be removed merely to isolate editorial text because their presence
+may itself contribute to Advertising Experience measurements.
+
+The configured selector must be validated before measurement. If it no longer
+resolves to the expected article-reading region, the observation must be
+reported as `MANUAL_REVIEW` rather than silently substituting an automatically
+inferred boundary.
+
+Article Reading Region configuration is part of the measurement environment
+and must be applied consistently to all selected articles from the same media
+property unless a documented structural difference requires review.
+
 ### Measurement
 
 The implementation records advertising geometry throughout the article's
