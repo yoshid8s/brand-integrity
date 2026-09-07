@@ -1,0 +1,4 @@
+media_id,media_property,selector,selector_type,validation_status,validated_url,validated_at,notes
+A01,Asahi Shimbun Digital,.nfyQp,media-specific,VALIDATED,https://www.asahi.com/articles/ASV932FCTV93BQBQ1Y8M.html,2026-09-07T16:33:48+09:00,Direct child of main#main; contains the normal article-reading flow including an in-article advertising module. No suitable semantic article selector observed.
+B01,痛いニュース(ﾉ∀`),.entry-content,structural,VALIDATED,https://itainews.com/archives/2066924.html,2026-09-07T16:33:48+09:00,Article reading region identified by the existing entry-content structure.
+C01,JiJi Style,article,semantic,VALIDATED,https://style.yh-inc.jp/ジジイのsummer-white-shirt-styles-3-looks/,2026-09-07T16:33:48+09:00,Semantic article element contains the normal article-reading region and excludes subsequent page content.
