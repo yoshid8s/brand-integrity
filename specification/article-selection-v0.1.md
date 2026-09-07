@@ -390,7 +390,61 @@ The original record must not be deleted.
 
 ---
 
-# 15. Reproducibility and Limitations
+# 15. Safety Exclusion
+
+Participant and researcher safety takes precedence over completion of the
+planned sample.
+
+A media property or candidate page must be excluded from further assessment
+when ordinary access or content interaction produces a potentially unsafe
+browser or advertising experience, including:
+
+- deceptive security or system warnings
+- redirects to confirmed or suspected scam destinations
+- unexpected redirects to suspicious external destinations
+- attempts to force software downloads or installation
+- repeated redirects that prevent normal navigation
+- browser behavior that materially interferes with the observer's ability to
+  leave or control the page
+- other behavior that creates a reasonable security or safety concern
+
+The observer must not intentionally reproduce the behavior merely to confirm
+the event.
+
+When a safety exclusion occurs, the following must be recorded where
+available:
+
+- media property
+- candidate URL
+- timestamp
+- interaction immediately preceding the event
+- observed behavior
+- external destination, if safely observable
+- evidence captured before measurement was stopped
+- reason for exclusion
+
+A destination may be classified as a scam page when the observed behavior
+matches established characteristics of a known scam pattern, such as a
+tech support scam. For example, a page impersonating a legitimate technology
+company, presenting a false security warning, restricting normal browser
+control, and instructing the user to call a displayed telephone number may be
+recorded as a tech support scam page.
+
+This classification applies to the observed destination and behavior. It must
+not by itself be interpreted as evidence that the measured publisher
+intentionally caused, controlled, or endorsed the scam or unsafe redirect.
+
+If an entire media property cannot be assessed safely, it may be removed from
+the Pilot 01 measurement sample. Any replacement property must be selected
+according to a documented replacement procedure before advertising
+measurement begins.
+
+No attempt should be made to bypass security controls, reproduce malicious
+behavior, or investigate potentially unsafe destinations as part of Pilot 01.
+
+---
+
+# 16. Reproducibility and Limitations
 
 Pilot 01 represents a time-bounded observation.
 
@@ -416,7 +470,7 @@ the environment in which advertising observations are made.
 
 ---
 
-# 16. Research Integrity Principle
+# 17. Research Integrity Principle
 
 The article sample must be determined without knowledge of the final
 comparative results.
