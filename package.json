@@ -1,0 +1,23 @@
+{
+  "name": "brand-integrity",
+  "version": "1.0.0",
+  "description": "Brand Integrity is a framework proposed by Y&H Inc. for exploring integrity in digital advertising and agentic environments.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yoshid8s/brand-integrity.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/yoshid8s/brand-integrity/issues"
+  },
+  "homepage": "https://github.com/yoshid8s/brand-integrity#readme",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
