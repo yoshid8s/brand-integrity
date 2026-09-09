@@ -426,7 +426,7 @@ When a previously selected article is found to be ineligible:
 
 If an original candidate position or other required historical field cannot be
 reliably reconstructed from contemporaneous records, it must not be guessed.
-The field must instead use an explicitly documented unknown value, and the
+The field must instead use `UNKNOWN` as the explicit unknown value, and the
 reason for the missing historical information must be recorded in the notes.
 
 This exception exists to correct protocol-consistency errors, not to optimize
