@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 
 const url =
+  process.argv[2] ||
   "https://style.yh-inc.jp/%E3%82%B8%E3%82%B8%E3%82%A4%E3%81%AEsummer-white-shirt-styles-3-looks/";
 
 const viewport = { width: 1440, height: 900 };
