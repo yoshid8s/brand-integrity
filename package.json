@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/yoshid8s/brand-integrity#readme",
   "devDependencies": {
+    "csv-parse": "^7.0.2",
     "playwright": "^1.63.0"
   }
 }
