@@ -404,6 +404,34 @@ Any replacement must preserve:
 
 The original record must not be deleted.
 
+## 14.1 Post-Freeze Eligibility Re-evaluation
+
+A frozen selection may also be re-evaluated when a subsequently clarified or
+added eligibility rule shows that the original selection decision was
+inconsistent with the current Pilot 01 selection protocol.
+
+Such a re-evaluation must not be based on advertising-experience measurements,
+observed ad quantity, publisher integrity signals, or whether the change would
+support the research hypotheses.
+
+When a previously selected article is found to be ineligible:
+
+- the original article record must be preserved
+- its eligibility status must be changed to `EXCLUDED`
+- the applicable exclusion reason must be recorded
+- the reason for the post-freeze re-evaluation must be documented
+- replacement articles must follow the original sequential-selection principle
+  as far as the surviving contemporaneous record permits
+- the replacement timestamp and replacement URL must be recorded
+
+If an original candidate position or other required historical field cannot be
+reliably reconstructed from contemporaneous records, it must not be guessed.
+The field must instead use an explicitly documented unknown value, and the
+reason for the missing historical information must be recorded in the notes.
+
+This exception exists to correct protocol-consistency errors, not to optimize
+the sample after measurement.
+
 ---
 
 # 15. Safety Exclusion
