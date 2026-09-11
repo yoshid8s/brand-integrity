@@ -785,6 +785,24 @@ Count separately where possible:
 Repeated refreshes of the same physical slot should be recorded separately
 from unique slot count when technically detectable.
 
+A **unique ad slot** is a distinct advertising placement within the Article
+Reading Region or another advertising placement that remains part of the
+observed article-reading experience.
+
+Where technical identifiers are available, slot identity should be based on
+placement-level evidence such as:
+
+- stable DOM position or container
+- placement identifier
+- ad-slot identifier
+- other repeatable structural evidence
+
+A change of advertiser, creative, image, destination, or internal ad ID within
+the same placement must not by itself increase the unique ad slot count.
+
+Conversely, repeated appearances of the same advertiser or internal ad ID in
+different placements must be counted as separate unique ad slots.
+
 ### Output
 
 The implementation should distinguish:
