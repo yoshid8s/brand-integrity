@@ -1,6 +1,10 @@
 import fs from "node:fs/promises";
+import { createRequire } from "node:module";
 import { parse } from "csv-parse/sync";
 import { chromium } from "playwright";
+
+const require = createRequire(import.meta.url);
+const playwrightVersion = require("playwright/package.json").version;
 
 const arg1 = process.argv[2];
 const arg2 = process.argv[3];
@@ -110,10 +114,18 @@ try {
 
   const page = await context.newPage();
 
+  const browserVersion = browser.version();
+  const userAgent = await page.evaluate(() => navigator.userAgent);
+
+  const measurementStartedAt = new Date().toISOString();
+  const navigationStartedAt = Date.now();
+
   const response = await page.goto(input.articleUrl, {
     waitUntil: "domcontentloaded",
     timeout: 30000,
   });
+
+  const navigationDurationMs = Date.now() - navigationStartedAt;
 
   await page.waitForTimeout(initialWaitMs);
 
@@ -175,10 +187,17 @@ try {
       locale: "ja-JP",
       timezoneId: "Asia/Tokyo",
       deviceScaleFactor: 1,
+      playwrightVersion,
+      browserVersion,
+      userAgent,
       initialWaitMs,
       stepPx,
       stepWaitMs,
       headless: false,
+    },
+    timing: {
+      measurementStartedAt,
+      navigationDurationMs,
     },
     navigation: {
       requestedUrl: input.articleUrl,

@@ -1,0 +1,252 @@
+{
+  "input": {
+    "pilotId": "pilot-01",
+    "mediaId": "C01",
+    "group": "C",
+    "mediaProperty": "JiJi Style",
+    "articleUrl": "https://style.yh-inc.jp/ジジイのsummer-white-shirt-styles-3-looks/",
+    "articleTitle": "ジジイのSummer White Shirt Styles：3 looks",
+    "readingRegion": {
+      "selector": "article",
+      "selectorType": "semantic",
+      "validationStatus": "VALIDATED"
+    }
+  },
+  "environment": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "locale": "ja-JP",
+    "timezoneId": "Asia/Tokyo",
+    "deviceScaleFactor": 1,
+    "playwrightVersion": "1.63.0",
+    "browserVersion": "153.0.8010.12",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+    "initialWaitMs": 3000,
+    "stepPx": 675,
+    "stepWaitMs": 1000,
+    "headless": false
+  },
+  "timing": {
+    "measurementStartedAt": "2026-09-11T02:56:42.853Z",
+    "navigationDurationMs": 366
+  },
+  "navigation": {
+    "requestedUrl": "https://style.yh-inc.jp/ジジイのsummer-white-shirt-styles-3-looks/",
+    "finalUrl": "https://style.yh-inc.jp/%E3%82%B8%E3%82%B8%E3%82%A4%E3%81%AEsummer-white-shirt-styles-3-looks/",
+    "httpStatus": 200
+  },
+  "states": [
+    {
+      "index": 0,
+      "scrollY": 0,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": 230,
+        "viewportBottom": 8330
+      }
+    },
+    {
+      "index": 1,
+      "scrollY": 675,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": -445,
+        "viewportBottom": 7655
+      }
+    },
+    {
+      "index": 2,
+      "scrollY": 1350,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": -1120,
+        "viewportBottom": 6980
+      }
+    },
+    {
+      "index": 3,
+      "scrollY": 2025,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": -1795,
+        "viewportBottom": 6305
+      }
+    },
+    {
+      "index": 4,
+      "scrollY": 2700,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": -2470,
+        "viewportBottom": 5630
+      }
+    },
+    {
+      "index": 5,
+      "scrollY": 3375,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": -3145,
+        "viewportBottom": 4955
+      }
+    },
+    {
+      "index": 6,
+      "scrollY": 4050,
+      "viewportHeight": 900,
+      "documentHeight": 9160,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 8330,
+        "height": 8100,
+        "viewportTop": -3820,
+        "viewportBottom": 4280
+      }
+    },
+    {
+      "index": 7,
+      "scrollY": 4725,
+      "viewportHeight": 900,
+      "documentHeight": 10637,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 9806,
+        "height": 9576,
+        "viewportTop": -4495,
+        "viewportBottom": 5081
+      }
+    },
+    {
+      "index": 8,
+      "scrollY": 5400,
+      "viewportHeight": 900,
+      "documentHeight": 10637,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 9806,
+        "height": 9576,
+        "viewportTop": -5170,
+        "viewportBottom": 4406
+      }
+    },
+    {
+      "index": 9,
+      "scrollY": 6075,
+      "viewportHeight": 900,
+      "documentHeight": 10637,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 9806,
+        "height": 9576,
+        "viewportTop": -5845,
+        "viewportBottom": 3731
+      }
+    },
+    {
+      "index": 10,
+      "scrollY": 6750,
+      "viewportHeight": 900,
+      "documentHeight": 11170,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 10339,
+        "height": 10109,
+        "viewportTop": -6520,
+        "viewportBottom": 3589
+      }
+    },
+    {
+      "index": 11,
+      "scrollY": 7425,
+      "viewportHeight": 900,
+      "documentHeight": 11170,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 10339,
+        "height": 10109,
+        "viewportTop": -7195,
+        "viewportBottom": 2914
+      }
+    },
+    {
+      "index": 12,
+      "scrollY": 8100,
+      "viewportHeight": 900,
+      "documentHeight": 11170,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 10339,
+        "height": 10109,
+        "viewportTop": -7870,
+        "viewportBottom": 2239
+      }
+    },
+    {
+      "index": 13,
+      "scrollY": 8775,
+      "viewportHeight": 900,
+      "documentHeight": 11170,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 10339,
+        "height": 10109,
+        "viewportTop": -8545,
+        "viewportBottom": 1564
+      }
+    },
+    {
+      "index": 14,
+      "scrollY": 9450,
+      "viewportHeight": 900,
+      "documentHeight": 11170,
+      "bodyTextLength": 5370,
+      "readingRegion": {
+        "top": 230,
+        "bottom": 10339,
+        "height": 10109,
+        "viewportTop": -9220,
+        "viewportBottom": 889
+      }
+    }
+  ]
+}
