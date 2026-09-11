@@ -129,6 +129,27 @@ try {
 
   await page.waitForTimeout(initialWaitMs);
 
+  await page.evaluate((selector) => {
+    const readingRegion = document.querySelector(selector);
+
+    if (!readingRegion) {
+      throw new Error(
+        `Reading region selector no longer resolved: ${selector}`
+      );
+    }
+
+    const top =
+      readingRegion.getBoundingClientRect().top + window.scrollY;
+
+    window.scrollTo({
+      top,
+      left: 0,
+      behavior: "instant",
+    });
+  }, input.readingRegion.selector);
+
+  await page.waitForTimeout(stepWaitMs);
+
   const states = [];
 
   for (let i = 0; i < 100; i++) {
