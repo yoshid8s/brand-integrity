@@ -188,7 +188,28 @@ try {
     states,
   };
 
-  console.log(JSON.stringify(output, null, 2));
+  const json = JSON.stringify(output, null, 2);
+
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-");
+
+  const outputDir =
+    `evidence/pilot-01/${input.mediaId}/measurement`;
+
+  await fs.mkdir(outputDir, { recursive: true });
+
+  const outputPath =
+    `${outputDir}/${timestamp}.json`;
+
+  await fs.writeFile(
+    outputPath,
+    `${json}\n`,
+    "utf8"
+  );
+
+  console.log(json);
+  console.error(`Saved measurement: ${outputPath}`);
 } finally {
   await browser.close();
 }
