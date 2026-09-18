@@ -864,26 +864,96 @@ where possible.
 
 ### Purpose
 
-Measure how much of the user's visible screen is occupied or obstructed by
-advertising while reading.
+Measure how much of the user's visible viewport is occupied or obstructed by
+advertising or by interface elements directly caused by an advertising
+presentation while reading.
 
 ### Definition
 
 For each sampled viewport state:
 
-**Viewport Obstruction = Advertising Overlay Area / Viewport Area**
+**Viewport Obstruction =
+Advertising Obstruction Area / Viewport Area**
+
+`Advertising Obstruction Area` is the portion of the visible viewport occupied
+or obscured by an advertising or advertising-associated element that obstructs
+the ordinary reading experience, including:
+
+- a sticky or fixed advertising unit that occupies viewport space independently
+  of the normal document flow;
+- an advertising overlay or interstitial; or
+- an overlay, backdrop, mask, or similar interface element that is directly
+  associated with an advertising presentation and reduces the normally visible
+  article-reading area.
+
+An advertising unit positioned within the normal document flow does not
+constitute Advertising Obstruction solely because it is visible within the
+viewport.
+
+The measurement concerns the observable effect on the viewport rather than the
+number of advertising units.
+
+An interface element must not be classified as Advertising Obstruction solely
+because it covers or occupies part of the viewport. Cookie notices,
+subscription prompts, site notifications, navigation interfaces, and other
+non-advertising elements are excluded unless reliable evidence establishes
+that they are directly associated with an advertising presentation.
+
+Where the relationship between an obstructing element and advertising cannot
+be established reliably, the observation must remain unresolved rather than
+being classified as advertising obstruction.
 
 ### Measurement
 
-Sample the viewport at defined scroll positions.
+Sample the viewport at the defined scroll positions used for the Article
+Experience Window.
 
-Record:
+The initial automated implementation counts technically confirmed advertising
+units with `position: fixed` or `position: sticky` as Advertising Obstruction.
 
-- maximum obstruction
-- median obstruction
-- persistent obstruction
-- location of obstruction
-- applicable ad format
+Other advertising-associated overlays, interstitials, backdrops, or masks
+require reliable technical or documented evidence before contributing to the
+automated A5 measurement.
+
+For each sampled viewport state, record where technically observable:
+
+- viewport width and height;
+- advertising obstruction area;
+- viewport obstruction ratio;
+- location of obstruction;
+- whether the obstruction overlaps the Article Reading Region;
+- whether the obstruction covers editorial text;
+- whether the obstruction covers navigation or controls;
+- whether the obstruction persists across multiple sampled viewport states;
+- applicable ad format; and
+- evidence supporting classification as advertising obstruction.
+
+When multiple advertising or advertising-related elements overlap each other,
+their overlapping pixels must not be counted more than once in the total
+Advertising Obstruction Area.
+
+Advertising elements that are present in the document but are outside the
+visible viewport at the sampled state do not contribute to Viewport
+Obstruction for that state.
+
+### Aggregate Output
+
+For each completed article observation, record:
+
+- maximum viewport obstruction;
+- median viewport obstruction;
+- persistent obstruction;
+- location of obstruction; and
+- applicable ad format where identifiable.
+
+`Maximum Viewport Obstruction` is the highest obstruction ratio observed among
+the sampled viewport states.
+
+`Median Viewport Obstruction` is the median of the obstruction ratios observed
+among the sampled viewport states.
+
+`Persistent Obstruction` records advertising obstruction that remains visible
+across multiple consecutive sampled viewport states.
 
 ### Output
 
@@ -891,15 +961,32 @@ Example:
 
 `Maximum Viewport Obstruction: 12.3%`
 
+`Median Viewport Obstruction: 8.1%`
+
+`Persistent Obstruction: YES`
+
 ### Special Cases
 
-Record separately:
+Record separately where observed:
 
-- sticky advertising
-- overlay advertising
-- interstitial advertising
-- advertising covering editorial text
-- advertising covering navigation or controls
+- sticky advertising;
+- overlay advertising;
+- interstitial advertising;
+- advertising covering editorial text;
+- advertising covering navigation or controls; and
+- advertising-related overlays, backdrops, or masks.
+
+An advertising-related backdrop or mask may contribute to A5 even when it is
+not counted as a separate advertising unit under A4.
+
+For example, a full-viewport backdrop presented as part of an advertising
+experience may produce substantial Viewport Obstruction while still
+representing only one advertising unit for A4.
+
+A5 measures the **extent of obstruction**. A6 records the **type of intrusive
+advertising format**. The same observed advertising experience may therefore
+produce evidence for both signals without being double-counted within either
+signal.
 
 ---
 
@@ -1162,6 +1249,47 @@ applied consistently across Groups A, B, and C.
 The measurement process must not click advertisements, intentionally trigger
 advertising interactions, bypass access controls, or perform interactions
 that are unnecessary for ordinary reading.
+
+### 8.4.2 A5 feasibility validation
+
+Initial feasibility testing was performed to validate that A5 distinguishes
+viewport obstruction from the mere presence of advertising within the visible
+page.
+
+In an A01 Asahi Shimbun Digital observation using a 1440 × 900 desktop
+viewport, a technically confirmed Google advertising unit was observed with
+`position: fixed` across multiple sampled viewport states. The unit occupied
+1440 × 60 pixels at the bottom of the viewport, corresponding to a viewport
+obstruction ratio of:
+
+**86,400 / 1,296,000 = 6.667%**
+
+This provides a positive validation case for persistent viewport obstruction.
+
+In an A04 Mainichi Shimbun observation, multiple technically confirmed Google
+advertising units were observed during the article-reading experience, but the
+observed units were positioned in the normal document flow (`position:
+static`). Their presence therefore provided evidence for A4 but did not, by
+itself, constitute viewport obstruction under the automated A5 procedure.
+
+This provides a negative validation case demonstrating that A5 must not count
+the visible area of every advertising unit merely because the unit intersects
+the viewport.
+
+The A04 feasibility observation also produced a full-viewport gray interface
+state associated with an unresolved iframe. Because the relationship between
+that interface state and advertising could not be established from the
+automated technical evidence alone, it must not be automatically classified as
+Advertising Obstruction. Such cases require separately documented evidence and
+may remain unresolved.
+
+These feasibility cases validate the following distinction:
+
+- A4 measures observed advertising units.
+- A5 measures the extent to which confirmed advertising or reliably
+  advertising-associated interface elements obstruct the observable viewport.
+- The presence of an advertising unit in the viewport does not, by itself,
+  establish A5 obstruction.
 
 ## 8.5 Environment recording
 

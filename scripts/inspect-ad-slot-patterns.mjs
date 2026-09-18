@@ -100,6 +100,73 @@ const browser = await chromium.launch({
   headless: false,
 });
 
+function clipRectToViewport(rect, viewport) {
+  const left = Math.max(0, rect.viewportLeft);
+  const top = Math.max(0, rect.viewportTop);
+  const right = Math.min(viewport.width, rect.viewportRight);
+  const bottom = Math.min(viewport.height, rect.viewportBottom);
+
+  if (right <= left || bottom <= top) {
+    return null;
+  }
+
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
+function calculateUnionArea(rectangles) {
+  if (rectangles.length === 0) {
+    return 0;
+  }
+
+  const xCoordinates = [
+    ...new Set(rectangles.flatMap((rect) => [rect.left, rect.right])),
+  ].sort((a, b) => a - b);
+
+  let totalArea = 0;
+
+  for (let i = 0; i < xCoordinates.length - 1; i++) {
+    const x1 = xCoordinates[i];
+    const x2 = xCoordinates[i + 1];
+
+    if (x2 <= x1) continue;
+
+    const intervals = rectangles
+      .filter((rect) => rect.left < x2 && rect.right > x1)
+      .map((rect) => [rect.top, rect.bottom])
+      .sort((a, b) => a[0] - b[0]);
+
+    if (intervals.length === 0) continue;
+
+    let coveredHeight = 0;
+    let currentTop = intervals[0][0];
+    let currentBottom = intervals[0][1];
+
+    for (let j = 1; j < intervals.length; j++) {
+      const [top, bottom] = intervals[j];
+
+      if (top <= currentBottom) {
+        currentBottom = Math.max(currentBottom, bottom);
+      } else {
+        coveredHeight += currentBottom - currentTop;
+        currentTop = top;
+        currentBottom = bottom;
+      }
+    }
+
+    coveredHeight += currentBottom - currentTop;
+    totalArea += (x2 - x1) * coveredHeight;
+  }
+
+  return totalArea;
+}
+
 const results = [];
 
 try {
@@ -224,6 +291,8 @@ try {
                   };
                 });
 
+              const elementStyle = getComputedStyle(element);
+
               return {
                 id: element.id || null,
                 queryId: element.getAttribute("data-google-query-id") || null,
@@ -233,6 +302,10 @@ try {
                 viewportBottom: Math.round(rect.bottom),
                 viewportLeft: Math.round(rect.left),
                 viewportRight: Math.round(rect.right),
+
+                position: elementStyle.position,
+                zIndex: elementStyle.zIndex,
+
                 insideReadingRegion:
                   readingRegion === element || readingRegion.contains(element),
 
@@ -306,16 +379,48 @@ try {
               };
             });
 
+          /*
+           * A5 — Editorial text geometry
+           *
+           * Identify direct-child editorial text blocks within the validated
+           * Article Reading Region.
+           *
+           * For the initial A01 validation, paragraph and heading elements
+           * are treated as editorial text. Related-content list items,
+           * captions, and other nested elements are intentionally excluded.
+           */
+          const editorialTextRects = [...readingRegion.children]
+            .filter((element) =>
+              ["P", "H1", "H2", "H3", "H4"].includes(element.tagName),
+            )
+            .filter((element) => (element.innerText || "").trim().length > 0)
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+
+              return {
+                tag: element.tagName,
+                textLength: (element.innerText || "").trim().length,
+                viewportTop: Math.round(rect.top),
+                viewportBottom: Math.round(rect.bottom),
+                viewportLeft: Math.round(rect.left),
+                viewportRight: Math.round(rect.right),
+              };
+            });
+
           return {
             scrollY: Math.round(window.scrollY),
             documentHeight: document.documentElement.scrollHeight,
             readingRegion: {
               viewportTop: Math.round(regionRect.top),
               viewportBottom: Math.round(regionRect.bottom),
+              viewportLeft: Math.round(regionRect.left),
+              viewportRight: Math.round(regionRect.right),
+              width: Math.round(regionRect.width),
               height: Math.round(regionRect.height),
             },
             googleSlots,
             otherIframes,
+            editorialTextRects,
           };
         }, article.readingRegionSelector);
 
@@ -367,6 +472,98 @@ try {
           }
         }
 
+        const a5ConfirmedRects = state.googleSlots
+          .filter(
+            (slot) =>
+              slot.renderedGoogleIframeCount > 0 &&
+              ["fixed", "sticky"].includes(slot.position),
+          )
+          .map((slot) => clipRectToViewport(slot, viewport))
+          .filter(Boolean);
+
+        const advertisingObstructionArea = calculateUnionArea(a5ConfirmedRects);
+
+        const readingRegionRect = clipRectToViewport(
+          state.readingRegion,
+          viewport,
+        );
+
+        const a5ReadingRegionOverlapRects = readingRegionRect
+          ? a5ConfirmedRects
+              .map((rect) => {
+                const left = Math.max(rect.left, readingRegionRect.left);
+                const right = Math.min(rect.right, readingRegionRect.right);
+                const top = Math.max(rect.top, readingRegionRect.top);
+                const bottom = Math.min(rect.bottom, readingRegionRect.bottom);
+
+                if (right <= left || bottom <= top) {
+                  return null;
+                }
+
+                return {
+                  left,
+                  right,
+                  top,
+                  bottom,
+                  width: right - left,
+                  height: bottom - top,
+                };
+              })
+              .filter(Boolean)
+          : [];
+
+        const readingRegionOverlapArea = calculateUnionArea(
+          a5ReadingRegionOverlapRects,
+        );
+
+        const overlapsReadingRegion = readingRegionOverlapArea > 0;
+
+        /*
+         * A5 — Editorial text overlap
+         *
+         * Distinguish advertising that merely intersects the validated
+         * Article Reading Region from advertising that actually overlaps
+         * editorial text blocks.
+         */
+        const editorialTextRects = state.editorialTextRects
+          .map((rect) => clipRectToViewport(rect, viewport))
+          .filter(Boolean);
+
+        const editorialTextOverlapRects = [];
+
+        for (const adRect of a5ConfirmedRects) {
+          for (const textRect of editorialTextRects) {
+            const left = Math.max(adRect.left, textRect.left);
+            const right = Math.min(adRect.right, textRect.right);
+            const top = Math.max(adRect.top, textRect.top);
+            const bottom = Math.min(adRect.bottom, textRect.bottom);
+
+            if (right <= left || bottom <= top) {
+              continue;
+            }
+
+            editorialTextOverlapRects.push({
+              left,
+              right,
+              top,
+              bottom,
+              width: right - left,
+              height: bottom - top,
+            });
+          }
+        }
+
+        const editorialTextOverlapArea = calculateUnionArea(
+          editorialTextOverlapRects,
+        );
+
+        const coversEditorialText = editorialTextOverlapArea > 0;
+
+        const viewportArea = viewport.width * viewport.height;
+
+        const viewportObstructionRatio =
+          viewportArea > 0 ? advertisingObstructionArea / viewportArea : null;
+
         states.push({
           index: i,
           scrollY: state.scrollY,
@@ -374,6 +571,49 @@ try {
           readingRegion: state.readingRegion,
           googleSlotCount: state.googleSlots.length,
           otherIframeCount: state.otherIframes.length,
+
+          // A5 diagnostic:
+          editorialTextRects: state.editorialTextRects,
+
+          // A5 feasibility:
+          // Preserve viewport geometry for advertising candidates
+          // observed at each sampled viewport state.
+          googleSlots: state.googleSlots.map((slot) => ({
+            id: slot.id,
+            queryId: slot.queryId,
+            viewportTop: slot.viewportTop,
+            viewportBottom: slot.viewportBottom,
+            viewportLeft: slot.viewportLeft,
+            viewportRight: slot.viewportRight,
+            position: slot.position,
+            zIndex: slot.zIndex,
+            renderedGoogleIframeCount: slot.renderedGoogleIframeCount,
+          })),
+
+          otherIframes: state.otherIframes.map((frame) => ({
+            id: frame.id,
+            src: frame.src,
+            viewportTop: frame.viewportTop,
+            viewportBottom: frame.viewportBottom,
+            viewportLeft: frame.viewportLeft,
+            viewportRight: frame.viewportRight,
+            a4Classification: frame.a4Classification,
+            detectionMethod: frame.detectionMethod,
+          })),
+
+          a5: {
+            viewportArea,
+            advertisingObstructionArea,
+            viewportObstructionRatio,
+            viewportObstructionPercent:
+              viewportObstructionRatio === null
+                ? null
+                : Number((viewportObstructionRatio * 100).toFixed(3)),
+            readingRegionOverlapArea,
+            overlapsReadingRegion,
+            editorialTextOverlapArea,
+            coversEditorialText,
+          },
         });
 
         const reachedReadingRegionEnd =
@@ -607,6 +847,26 @@ try {
 
       const manuallyConfirmedAdCount = manuallyConfirmedAdUnits.length;
 
+      /*
+       * A5 — Manually confirmed advertising-related obstruction
+       *
+       * RELATED_AD_EXPERIENCE is not counted as an independent A4 ad unit,
+       * but may contribute to A5 when manual and technical evidence
+       * establishes that the candidate is part of an advertising presentation.
+       */
+      const manuallyConfirmedA5Obstructions = manualReviewResults
+        .filter((review) => review.classification === "RELATED_AD_EXPERIENCE")
+        .map((review) => ({
+          id: review.candidate.id,
+          detectionMethod: review.candidate.detectionMethod,
+          width: review.candidate.width,
+          height: review.candidate.height,
+          firstObservedStep: review.candidate.firstObservedStep,
+          firstObservedScrollY: review.candidate.firstObservedScrollY,
+          evidence: review.evidence,
+          reviewNote: review.reviewNote,
+        }));
+
       const observedAdUnitCountBeforeMeasurementStatus =
         automaticAdUnitCount + manuallyConfirmedAdCount;
 
@@ -616,6 +876,85 @@ try {
           : null;
 
       const unresolvedAdCandidateCount = remainingUnresolvedAdCandidates.length;
+
+      /*
+       * Apply manually confirmed A5 obstruction evidence to the
+       * corresponding sampled viewport states.
+       */
+      for (const obstruction of manuallyConfirmedA5Obstructions) {
+        const state = states[obstruction.firstObservedStep];
+
+        if (!state?.a5) {
+          continue;
+        }
+
+        const obstructionArea =
+          Math.min(obstruction.width, viewport.width) *
+          Math.min(obstruction.height, viewport.height);
+
+        const obstructionPercent =
+          (obstructionArea / (viewport.width * viewport.height)) * 100;
+
+        /*
+         * Manual obstruction evidence is used here only when it exceeds
+         * the automatically measured obstruction for the sampled state.
+         *
+         * This avoids double-counting overlapping automatic and manual
+         * evidence for the same viewport.
+         */
+        if (obstructionArea > state.a5.advertisingObstructionArea) {
+          state.a5.advertisingObstructionArea = obstructionArea;
+          state.a5.viewportObstructionRatio =
+            obstructionArea / (viewport.width * viewport.height);
+          state.a5.viewportObstructionPercent = Number(
+            obstructionPercent.toFixed(3),
+          );
+        }
+
+        state.a5.manualObstructionEvidence = {
+          classification: "RELATED_AD_EXPERIENCE",
+          id: obstruction.id,
+          evidence: obstruction.evidence,
+          reviewNote: obstruction.reviewNote,
+        };
+      }
+
+      // A5 — Viewport Obstruction aggregate output
+      const completedA5States = states
+        .map((state) => state.a5)
+        .filter((a5) => a5 && Number.isFinite(a5.viewportObstructionPercent));
+
+      const obstructionPercents = completedA5States
+        .map((a5) => a5.viewportObstructionPercent)
+        .sort((a, b) => a - b);
+
+      const maximumViewportObstruction =
+        obstructionPercents.length > 0
+          ? Math.max(...obstructionPercents)
+          : null;
+
+      const medianViewportObstruction =
+        obstructionPercents.length === 0
+          ? null
+          : obstructionPercents.length % 2 === 1
+            ? obstructionPercents[Math.floor(obstructionPercents.length / 2)]
+            : (obstructionPercents[obstructionPercents.length / 2 - 1] +
+                obstructionPercents[obstructionPercents.length / 2]) /
+              2;
+
+      const persistentObstruction =
+        completedA5States.length >= 2 &&
+        completedA5States.every((a5) => a5.advertisingObstructionArea > 0);
+
+      const finalA5 =
+        measurementStatus === "COMPLETE"
+          ? {
+              maximumViewportObstruction,
+              medianViewportObstruction,
+              persistentObstruction,
+              sampledViewportStateCount: completedA5States.length,
+            }
+          : null;
 
       const result = {
         status: "OK",
@@ -642,6 +981,18 @@ try {
         manuallyConfirmedAdUnits,
         manualReviewResults,
         remainingUnresolvedAdCandidates,
+
+        // A5 formal output
+        a5: finalA5,
+
+        // A5 diagnostic evidence observed before interruption
+        a5ObservedBeforeMeasurementStatus: {
+          maximumViewportObstruction,
+          medianViewportObstruction,
+          persistentObstruction,
+          sampledViewportStateCount: completedA5States.length,
+          manuallyConfirmedObstructions: manuallyConfirmedA5Obstructions,
+        },
 
         // Backward-compatible feasibility output
         observedAdUnitCount,
