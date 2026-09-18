@@ -771,6 +771,25 @@ Such cases must be recorded as unresolved rather than guessed.
 Measure the number of advertising units presented during the article
 experience.
 
+### Definition
+
+For A4, the observation scope is the **Article Experience Window**: the
+observable article-page experience from the initial article-page viewport
+through the end of the validated Article Reading Region.
+
+Advertising units may therefore be counted when they are presented either
+within the Article Reading Region or elsewhere in the page layout while
+remaining part of the user's observable article-reading experience.
+
+A4 is independent of advertising transaction or delivery model.
+
+Reserved, direct-sold, programmatic reserved, programmatic auction, and other
+advertising units are included when they satisfy the same observation criteria.
+
+The transaction or delivery model must not be inferred solely from the
+technical implementation of an advertising slot. Where it can be established
+from reliable evidence, it should be recorded separately from A4.
+
 ### Measurement
 
 Count separately where possible:
@@ -802,6 +821,30 @@ the same placement must not by itself increase the unique ad slot count.
 
 Conversely, repeated appearances of the same advertiser or internal ad ID in
 different placements must be counted as separate unique ad slots.
+
+### Detection Confidence and Manual Evidence
+
+Automated detection may identify advertising units through repeatable technical
+evidence such as advertising containers, placement identifiers, ad-slot
+identifiers, or advertising-specific iframe structures.
+
+Where an advertising exposure is visibly present during the Article Experience
+Window but cannot be reliably classified by the automated procedure, it should
+be retained as an unresolved candidate rather than silently excluded.
+
+Manual observation may be used to confirm such a candidate when the visual
+evidence clearly establishes that the element is advertising. The manual
+confirmation and its evidence must be recorded separately from the automated
+detection result.
+
+The implementation should therefore distinguish, where necessary:
+
+- automatically confirmed advertising units
+- manually confirmed advertising units
+- unresolved advertising candidates
+
+Manual confirmation must not be used to infer the advertising transaction or
+delivery model without separate reliable evidence.
 
 ### Output
 
@@ -975,6 +1018,85 @@ Selection rules should avoid, where practical:
 - exceptional interactive features
 
 The selection method must be documented.
+
+### 8.3.1 Measurement-time access state
+
+Article eligibility is determined and recorded at sample selection time.
+
+Because the access state of a digital article may change after selection,
+the article access state must be checked again at measurement time.
+
+If an article that was eligible at selection time later becomes subject to
+a paywall, authentication requirement, or another access restriction:
+
+- the original selection record must be preserved;
+- the changed access state must be recorded as a measurement-time condition;
+- access controls must not be bypassed for measurement;
+- Advertising Experience signals must not be inferred for portions of the
+  article that are not available in the ordinary observed reading experience.
+
+A numerical value of zero must not be used to represent an Advertising
+Experience signal when the relevant observation could not be completed
+because part of the selected article was access-restricted.
+
+Such observations must instead be recorded with an explicit measurement
+status indicating that the full Article Reading Region was not observable.
+
+A measurement-time access restriction applies to the affected article
+observation and does not by itself exclude the media property or other
+selected articles from Pilot 01.
+
+### 8.3.2 Measurement Status
+
+Each article observation must record a Measurement Status separately from
+the Result States defined in Section 3.
+
+The Measurement Status describes whether the article-reading experience
+required for Advertising Experience measurement was observable.
+
+The following statuses are used:
+
+`COMPLETE`
+
+The full Article Reading Region required by the measurement procedure was
+observable and the measurement completed normally.
+
+`PARTIALLY_OBSERVABLE_ACCESS_RESTRICTED`
+
+The article page and part of the Article Reading Region were observable,
+but a paywall, authentication requirement, purchase requirement, or other
+access restriction prevented observation of the full Article Reading Region.
+
+Advertising Experience signals must not be reported as zero merely because
+the unobservable portion could not be measured.
+
+`INCOMPLETE_READING_EXPERIENCE`
+
+The Article Reading Region was identified and at least part of the reading
+experience was observable, but the measurement procedure could not complete
+the ordinary reading path because of a page-level condition such as an
+overlay, modal, scroll lock, or other interface behavior.
+
+This status describes an incomplete observed reading experience rather than
+a measurement-system failure.
+
+Advertising Experience signals observed before the interruption may be
+retained as diagnostic evidence, but incomplete observations must not be
+reported as complete numerical measurements.
+
+`READING_REGION_NOT_FOUND`
+
+The defined Article Reading Region could not be identified at measurement
+time.
+
+`MEASUREMENT_ERROR`
+
+The observation could not be completed because of a technical failure such
+as navigation failure, browser error, or another measurement-system error.
+
+Measurement Status must not replace the Result States defined in Section 3.
+It records the observability of the measurement session, while Result States
+describe the result of an individual integrity signal.
 
 ## 8.4 Repeated advertising observations
 
