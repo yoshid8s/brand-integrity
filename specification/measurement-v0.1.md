@@ -999,31 +999,92 @@ obstruct content consumption.
 
 ### Measurement
 
-Record the presence or absence of:
+Each intrusive advertising format must be evaluated independently.
 
-- popup advertising
-- prestitial advertising
-- interstitial advertising
-- overlay advertising
-- sticky advertising
-- autoplay video
-- autoplay audio
-- advertising covering editorial content
-- advertising covering controls
-- advertising-triggered layout movement
+Where technically observable, record one of:
+
+- `DETECTED` — sufficient technical evidence establishes that the advertising
+  format occurred during the observed Article Experience Window;
+- `NOT_DETECTED` — the relevant experience was observable and no evidence of
+  the format was detected;
+- `UNRESOLVED` — an intrusive interface or media behavior was observed, but
+  its relationship to advertising or its format classification could not be
+  established reliably; or
+- `NOT_OBSERVABLE` — the relevant Article Experience Window could not be
+  observed sufficiently to evaluate the format.
+
+The absence of automatically detected evidence must not be interpreted as
+`NOT_DETECTED` when the relevant experience was not fully observable.
+
+Record independently:
+
+- popup advertising;
+- prestitial advertising;
+- interstitial advertising;
+- overlay advertising;
+- sticky advertising;
+- autoplay video;
+- autoplay audio;
+- advertising covering editorial content;
+- advertising covering controls; and
+- advertising-triggered layout movement.
+
+A format must be classified as advertising only when the observed element or
+behavior can be associated with advertising through reliable technical or
+documented evidence.
+
+Generic overlays, dialogs, subscription prompts, cookie notices, navigation
+interfaces, and other obstructing interface elements must not be classified
+as intrusive advertising solely because they interrupt or cover content.
+Where an intrusive interface is observable but its relationship to advertising
+cannot be established reliably, record the relevant format as `UNRESOLVED`.
+
+### Automated Phase 1 Classification
+
+The initial automated A6 implementation classifies only intrusive advertising
+formats that can be established from technical evidence already collected
+during the A5 viewport observation.
+
+The following Phase 1 classifications are supported:
+
+- `Sticky Advertising`: detected when a technically confirmed advertising unit
+  is observed with CSS `position: fixed` or `position: sticky`.
+- `Advertising Covering Editorial Content`: detected when a technically
+  confirmed advertising obstruction geometrically overlaps editorial text
+  within the validated Article Reading Region.
+
+The presence of an advertising unit within the visible viewport does not by
+itself establish an intrusive advertising format.
+
+Advertising units positioned within the normal document flow (`position:
+static`) are therefore not classified as Sticky Advertising solely because
+they are visible during scrolling.
+
+Likewise, an overlay, backdrop, mask, iframe, or other interface element must
+not be classified as an intrusive advertising format unless reliable evidence
+establishes its relationship to an advertising presentation.
+
+Where such a relationship cannot be established, the observation remains
+unresolved rather than being classified automatically.
+
+Phase 1 does not yet automatically classify popup advertising, prestitial
+advertising, interstitial advertising, autoplay video, autoplay audio,
+advertising covering controls, or advertising-triggered layout movement unless
+separate reliable detection evidence is implemented.
 
 ### Output
 
-Each detected format should be recorded independently.
+Each format should be recorded independently using the applicable A6
+classification state.
 
 Example:
 
-Popup: NO  
-Interstitial: NO  
-Sticky Ad: YES  
-Autoplay Video: NO  
-Autoplay Audio: NO  
-Content Overlay: NO
+- `Popup Advertising: NOT_DETECTED`
+- `Interstitial Advertising: NOT_DETECTED`
+- `Sticky Advertising: DETECTED`
+- `Autoplay Video: NOT_DETECTED`
+- `Autoplay Audio: NOT_DETECTED`
+- `Advertising Covering Editorial Content: DETECTED`
 
 ### Layout Stability
 
@@ -1033,6 +1094,48 @@ loading should also be recorded using browser performance data.
 This measurement should remain separate from general page CLS unless the
 measurement implementation can reasonably attribute the shift to
 advertising.
+
+### Phase 1 Feasibility Validation
+
+Initial Phase 1 feasibility testing produced both positive and negative
+validation cases.
+
+In an A01 Asahi Shimbun Digital observation using a 1440 × 900 desktop
+viewport, a technically confirmed Google advertising unit was observed with
+`position: fixed` across the sampled reading path. The unit occupied the
+bottom 1440 × 60 pixels of the viewport.
+
+A5 measured the resulting persistent viewport obstruction at 6.667%. Using the
+same technical evidence, A6 classified:
+
+- `Sticky Advertising: DETECTED`
+- `Advertising Covering Editorial Content: DETECTED`
+
+The editorial-content classification was based on geometric overlap between
+the confirmed advertising obstruction and editorial text blocks, rather than
+on the presence of the advertising unit alone.
+
+In a completed A04 Mainichi Shimbun observation, advertising units were
+observed within the ordinary article experience, but no technically confirmed
+fixed or sticky advertising obstruction was detected. A5 therefore recorded
+0% maximum and median viewport obstruction, and A6 classified:
+
+- `Sticky Advertising: NOT_DETECTED`
+- `Advertising Covering Editorial Content: NOT_DETECTED`
+
+This provides a negative validation case showing that advertising visible
+within the normal document flow must not automatically be classified as an
+intrusive advertising format.
+
+A separate A04 feasibility observation produced a full-viewport gray interface
+state associated with an unresolved iframe. That state was not reproduced in
+the subsequent completed observation. Its triggering conditions and its
+relationship to advertising have therefore not been established.
+
+Accordingly, the gray interface state is not classified as an A6 intrusive
+advertising format. This illustrates the requirement that visually intrusive
+behavior alone is insufficient for A6 classification when its relationship to
+advertising cannot be established reliably.
 
 ---
 

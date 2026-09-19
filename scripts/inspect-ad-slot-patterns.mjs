@@ -956,6 +956,75 @@ try {
             }
           : null;
 
+      /*
+       * A6 — Intrusive Ad Formats
+       *
+       * Phase 1 derives only formats that can be established from
+       * technical evidence already collected for A5.
+       *
+       * A5 measures the extent of viewport obstruction.
+       * A6 classifies the observable intrusive advertising format.
+       */
+
+      const stickyAdvertisingDetected = states.some((state) =>
+        state.googleSlots.some(
+          (slot) =>
+            slot.renderedGoogleIframeCount > 0 &&
+            ["fixed", "sticky"].includes(slot.position),
+        ),
+      );
+
+      const advertisingCoveringEditorialContentDetected = states.some(
+        (state) => state.a5?.coversEditorialText === true,
+      );
+
+      /*
+       * A6 uses explicit classification states rather than booleans.
+       *
+       * DETECTED:
+       *   sufficient technical evidence was observed.
+       *
+       * NOT_DETECTED:
+       *   the complete Article Experience Window was observable and no
+       *   qualifying evidence was detected.
+       *
+       * NOT_OBSERVABLE:
+       *   the Article Experience Window could not be observed sufficiently
+       *   to support a negative classification.
+       *
+       * UNRESOLVED:
+       *   reserved for intrusive behavior that is observable but whose
+       *   relationship to advertising or format cannot be established.
+       *   Phase 1 does not yet automatically assign UNRESOLVED to these
+       *   two supported formats.
+       */
+      const classifyA6Phase1 = (detected) => {
+        if (detected) {
+          return "DETECTED";
+        }
+
+        if (measurementStatus === "COMPLETE") {
+          return "NOT_DETECTED";
+        }
+
+        return "NOT_OBSERVABLE";
+      };
+
+      const observedA6 = {
+        stickyAdvertising: classifyA6Phase1(stickyAdvertisingDetected),
+        advertisingCoveringEditorialContent: classifyA6Phase1(
+          advertisingCoveringEditorialContentDetected,
+        ),
+      };
+
+      const finalA6 =
+        measurementStatus === "COMPLETE"
+          ? observedA6
+          : {
+              stickyAdvertising: "NOT_OBSERVABLE",
+              advertisingCoveringEditorialContent: "NOT_OBSERVABLE",
+            };
+
       const result = {
         status: "OK",
 
@@ -993,6 +1062,12 @@ try {
           sampledViewportStateCount: completedA5States.length,
           manuallyConfirmedObstructions: manuallyConfirmedA5Obstructions,
         },
+
+        // A6 formal output
+        a6: finalA6,
+
+        // A6 diagnostic evidence observed before interruption
+        a6ObservedBeforeMeasurementStatus: observedA6,
 
         // Backward-compatible feasibility output
         observedAdUnitCount,
