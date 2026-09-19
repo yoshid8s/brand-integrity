@@ -1486,6 +1486,144 @@ These feasibility cases validate the following distinction:
 - The presence of an advertising unit in the viewport does not, by itself,
   establish A5 obstruction.
 
+### 8.4.3 Repeated-observation feasibility validation
+
+Repeated observations must distinguish variability in the observed digital
+advertising experience from variability or failure in the measurement
+procedure itself.
+
+Each repeated observation should therefore be performed as an independent
+reading session using a fresh browser context unless a different stateful
+measurement condition is explicitly defined and documented.
+
+Each observation must retain its own Measurement Status. Observations with
+different Measurement Status values must not be combined as though they were
+equivalent numerical measurements.
+
+In particular, an `INCOMPLETE_READING_EXPERIENCE` observation must not be
+treated as a zero-valued Advertising Experience observation. Numerical
+aggregation of an Advertising Experience signal should use only observations
+for which that signal was sufficiently observable under the applicable
+measurement definition.
+
+Repeated-observation analysis should therefore distinguish at least:
+
+- the number of attempted observations;
+- the number and proportion of `COMPLETE` observations;
+- the number and proportion of incomplete or otherwise non-complete
+  observations;
+- variation in Advertising Experience measurements among `COMPLETE`
+  observations; and
+- variation in page or interface states that affected observability.
+
+The completion or observability rate is a property of the repeated observation
+set and must remain separate from the numerical Advertising Experience signals
+measured during completed observations.
+
+#### Phase 1 repeated-observation validation
+
+Initial desktop feasibility testing used repeated independent observations with
+a 1440 × 900 viewport and a fresh browser context for each observation.
+
+For A01 Asahi Shimbun Digital, five independent observations were performed.
+All five observations completed successfully, and the principal A4–A7 results
+were reproduced across all five observations:
+
+- `Measurement Status: COMPLETE` in 5 of 5 observations;
+- `A4 Ad Unit Count: 7` in 5 of 5 observations;
+- `A5 Maximum Viewport Obstruction: 6.667%` in 5 of 5 observations;
+- `A5 Median Viewport Obstruction: 6.667%` in 5 of 5 observations;
+- `A5 Persistent Obstruction: true` in 5 of 5 observations;
+- `A6 Sticky Advertising: DETECTED` in 5 of 5 observations;
+- `A6 Advertising Covering Editorial Content: DETECTED` in 5 of 5
+  observations; and
+- `A7 In-content Advertising Interruptions: 0` in 5 of 5 observations.
+
+The number of sampled viewport states varied slightly between observations, but
+the resulting A5–A7 classifications and numerical results remained unchanged.
+This demonstrates that minor variation in sampling progression does not
+necessarily imply variation in the final Advertising Experience measurement.
+
+For A04 Mainichi Shimbun, two independent feasibility runs of five observations
+each were performed.
+
+The first five-observation run produced:
+
+- `Measurement Status: COMPLETE` in 2 of 5 observations; and
+- `Measurement Status: INCOMPLETE_READING_EXPERIENCE` with
+  `Scroll Status: SCROLL_STALLED` in 3 of 5 observations.
+
+The second five-observation run produced:
+
+- `Measurement Status: COMPLETE` in 4 of 5 observations; and
+- `Measurement Status: INCOMPLETE_READING_EXPERIENCE` with
+  `Scroll Status: SCROLL_STALLED` in 1 of 5 observations.
+
+Across the two runs, A04 therefore produced six completed reading experiences
+and four incomplete reading experiences in ten attempted observations.
+
+Manual observation during both feasibility runs showed an intermittent
+full-viewport gray interface state. In observations that stalled, the gray
+interface persisted and prevented the controlled reading session from
+continuing. In completed observations, the gray interface could appear
+briefly before disappearing, after which the ordinary reading session and
+controlled scrolling continued.
+
+The technical cause of the gray interface state and its relationship to
+advertising have not been established. It must therefore not be classified as
+an intrusive advertising format or assigned an Advertising Experience value
+solely from its visual appearance.
+
+Among the six `COMPLETE` A04 observations across both runs, A5–A7 produced
+consistent results:
+
+- `A5 Maximum Viewport Obstruction: 0%` in 6 of 6 completed observations;
+- `A5 Median Viewport Obstruction: 0%` in 6 of 6 completed observations;
+- `A6 Sticky Advertising: NOT_DETECTED` in 6 of 6 completed observations;
+- `A6 Advertising Covering Editorial Content: NOT_DETECTED` in 6 of 6
+  completed observations;
+- `A7 In-content Advertising Interruptions: 3` in 6 of 6 completed
+  observations; and
+- `A7 Interruptions per 1,000 characters: 3.555` in 6 of 6 completed
+  observations.
+
+A4 showed limited variation among the completed observations. The first
+five-observation run produced `A4 Ad Unit Count: 8` in both completed
+observations. In the second run, three completed observations produced an
+A4 Ad Unit Count of 8 and one completed observation produced an A4 Ad Unit
+Count of 7.
+
+This distinction is important. Variation in the number of advertising units
+delivered during otherwise valid reading sessions does not necessarily imply
+variation in the higher-level Advertising Experience characteristics measured
+by A5–A7. In these A04 observations, A4 varied between 7 and 8 while A5, A6,
+and A7 remained unchanged among all completed observations.
+
+The four incomplete A04 observations must not be represented as zero-valued
+A4, A5, or A7 measurements. Their incomplete status is instead preserved as
+evidence about observability.
+
+These feasibility results demonstrate why repeated observation must preserve
+two distinct dimensions:
+
+1. **Experience observability** — whether the required reading experience was
+   sufficiently observable to produce a valid measurement; and
+2. **Measurement variability** — how the Advertising Experience signals vary
+   among observations for which the required experience was observable.
+
+A dynamic or intermittently unobservable page experience must not be
+interpreted automatically as measurement instability. Conversely, consistency
+among completed observations does not eliminate the need to report incomplete
+observations separately.
+
+The A01 and A04 feasibility results also demonstrate that repeated observation
+can distinguish advertising-delivery variability from variability in the
+resulting Advertising Experience measurements.
+
+The final Pilot 01 repetition count should be selected using this distinction
+and should use the minimum number of observations necessary to characterize
+both measurement variability and material observability variation.
+
 ## 8.5 Environment recording
 
 Each observation should record:

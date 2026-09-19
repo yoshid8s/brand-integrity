@@ -4,6 +4,11 @@ import { chromium } from "playwright";
 
 const targetMediaId = process.argv[2] || null;
 
+const repeatCount = Math.max(
+  1,
+  Number.parseInt(process.argv[3] || "1", 10) || 1,
+);
+
 const articlesCsv = await fs.readFile("data/pilot-01-articles.csv", "utf8");
 
 const regionsCsv = await fs.readFile(
@@ -167,11 +172,21 @@ function calculateUnionArea(rectangles) {
   return totalArea;
 }
 
+const observations = selected.flatMap((article) =>
+  Array.from({ length: repeatCount }, (_, index) => ({
+    ...article,
+    observationIndex: index + 1,
+  })),
+);
+
 const results = [];
 
 try {
-  for (const article of selected) {
-    console.error(`Inspecting ${article.media_id} ${article.media_property}`);
+  for (const article of observations) {
+    console.error(
+      `Inspecting ${article.media_id} ${article.media_property} ` +
+        `(observation ${article.observationIndex}/${repeatCount})`,
+    );
 
     const context = await browser.newContext({
       viewport,
@@ -203,6 +218,7 @@ try {
 
       if (!regionExists) {
         results.push({
+          observationIndex: article.observationIndex,
           mediaId: article.media_id,
           mediaProperty: article.media_property,
           articleUrl: article.final_resolved_url || article.article_url,
@@ -1236,6 +1252,7 @@ try {
       };
 
       results.push({
+        observationIndex: article.observationIndex,
         mediaId: article.media_id,
         mediaProperty: article.media_property,
         articleUrl: article.final_resolved_url || article.article_url,
@@ -1244,6 +1261,7 @@ try {
       });
     } catch (error) {
       results.push({
+        observationIndex: article.observationIndex,
         mediaId: article.media_id,
         mediaProperty: article.media_property,
         articleUrl: article.final_resolved_url || article.article_url,
@@ -1267,7 +1285,9 @@ console.log(
       stepPx,
       stepWaitMs,
       maxScrollSteps,
-      inspectedMediaCount: results.length,
+      repeatCount,
+      inspectedMediaCount: selected.length,
+      observationCount: results.length,
       results,
     },
     null,
