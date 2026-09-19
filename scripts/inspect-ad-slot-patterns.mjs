@@ -264,6 +264,52 @@ try {
             .map((element) => {
               const rect = element.getBoundingClientRect();
 
+              /*
+               * A7 — Content Interruption DOM position
+               *
+               * Resolve the Google advertising slot to the direct child of the
+               * validated Article Reading Region that contains the placement.
+               *
+               * Multiple advertising iframes may belong to the same direct
+               * child. A7 treats that direct-child placement as one candidate
+               * interruption rather than counting each iframe separately.
+               */
+              const readingRegionChildren = [...readingRegion.children];
+
+              let directChild = element;
+
+              while (
+                directChild &&
+                directChild.parentElement !== readingRegion
+              ) {
+                directChild = directChild.parentElement;
+              }
+
+              const belongsToReadingRegion =
+                directChild?.parentElement === readingRegion;
+
+              const directChildIndex = belongsToReadingRegion
+                ? readingRegionChildren.indexOf(directChild)
+                : -1;
+
+              const isEditorialTextBlock = (node) =>
+                ["P", "H1", "H2", "H3", "H4"].includes(node.tagName) &&
+                (node.innerText || "").trim().length > 0;
+
+              const editorialBeforeCount =
+                directChildIndex >= 0
+                  ? readingRegionChildren
+                      .slice(0, directChildIndex)
+                      .filter(isEditorialTextBlock).length
+                  : 0;
+
+              const editorialAfterCount =
+                directChildIndex >= 0
+                  ? readingRegionChildren
+                      .slice(directChildIndex + 1)
+                      .filter(isEditorialTextBlock).length
+                  : 0;
+
               const googleIframes = [
                 ...element.querySelectorAll("iframe[id^='google_ads_iframe_']"),
               ];
@@ -308,6 +354,19 @@ try {
 
                 insideReadingRegion:
                   readingRegion === element || readingRegion.contains(element),
+
+                // A7 — Content Interruption evidence
+                directChildIndex:
+                  directChildIndex >= 0 ? directChildIndex : null,
+
+                editorialBeforeCount,
+                editorialAfterCount,
+
+                qualifiesAsInContentInterruption:
+                  belongsToReadingRegion &&
+                  elementStyle.position === "static" &&
+                  editorialBeforeCount > 0 &&
+                  editorialAfterCount > 0,
 
                 googleIframeCount: googleIframes.length,
 
@@ -588,6 +647,13 @@ try {
             position: slot.position,
             zIndex: slot.zIndex,
             renderedGoogleIframeCount: slot.renderedGoogleIframeCount,
+
+            // A7 diagnostic evidence
+            directChildIndex: slot.directChildIndex,
+            editorialBeforeCount: slot.editorialBeforeCount,
+            editorialAfterCount: slot.editorialAfterCount,
+            qualifiesAsInContentInterruption:
+              slot.qualifiesAsInContentInterruption,
           })),
 
           otherIframes: state.otherIframes.map((frame) => ({
@@ -1025,6 +1091,87 @@ try {
               advertisingCoveringEditorialContent: "NOT_OBSERVABLE",
             };
 
+      /*
+       * A7 — Content Interruption
+       *
+       * Count unique in-content advertising placements within the validated
+       * Article Reading Region.
+       *
+       * Repeated observation during scrolling must not increase the count.
+       * Multiple Google slots contained by the same direct child of the
+       * Reading Region represent one interruption placement.
+       */
+      const observedA7Placements = new Map();
+
+      for (const state of states) {
+        for (const slot of state.googleSlots) {
+          if (
+            slot.renderedGoogleIframeCount <= 0 ||
+            slot.qualifiesAsInContentInterruption !== true ||
+            slot.directChildIndex === null
+          ) {
+            continue;
+          }
+
+          const key = `direct-child:${slot.directChildIndex}`;
+
+          if (!observedA7Placements.has(key)) {
+            observedA7Placements.set(key, {
+              directChildIndex: slot.directChildIndex,
+              firstObservedStep: state.index,
+              firstObservedScrollY: state.scrollY,
+              slotIds: [],
+              editorialBeforeCount: slot.editorialBeforeCount,
+              editorialAfterCount: slot.editorialAfterCount,
+            });
+          }
+
+          const placement = observedA7Placements.get(key);
+
+          if (slot.id && !placement.slotIds.includes(slot.id)) {
+            placement.slotIds.push(slot.id);
+          }
+        }
+      }
+
+      const inContentAdvertisingInterruptions = observedA7Placements.size;
+
+      /*
+       * Article character count is derived from the editorial text blocks
+       * already identified within the validated Article Reading Region.
+       *
+       * Use the maximum observed total because lazy loading or page-state
+       * changes may alter the available geometry during the reading path.
+       */
+      const articleCharacterCount = Math.max(
+        0,
+        ...states.map((state) =>
+          (state.editorialTextRects || []).reduce(
+            (sum, rect) => sum + (rect.textLength || 0),
+            0,
+          ),
+        ),
+      );
+
+      const interruptionsPer1000Characters =
+        articleCharacterCount > 0
+          ? Number(
+              (
+                (inContentAdvertisingInterruptions / articleCharacterCount) *
+                1000
+              ).toFixed(3),
+            )
+          : null;
+
+      const observedA7 = {
+        inContentAdvertisingInterruptions,
+        articleCharacterCount,
+        interruptionsPer1000Characters,
+        placements: [...observedA7Placements.values()],
+      };
+
+      const finalA7 = measurementStatus === "COMPLETE" ? observedA7 : null;
+
       const result = {
         status: "OK",
 
@@ -1068,6 +1215,12 @@ try {
 
         // A6 diagnostic evidence observed before interruption
         a6ObservedBeforeMeasurementStatus: observedA6,
+
+        // A7 formal output
+        a7: finalA7,
+
+        // A7 diagnostic evidence observed before interruption
+        a7ObservedBeforeMeasurementStatus: observedA7,
 
         // Backward-compatible feasibility output
         observedAdUnitCount,

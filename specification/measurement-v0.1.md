@@ -1143,39 +1143,131 @@ advertising cannot be established reliably.
 
 ### Purpose
 
-Measure how frequently advertising interrupts the flow of editorial content.
+Measure how frequently advertising interrupts the flow of primary editorial
+content within the validated Article Reading Region.
 
 ### Definition
 
-An interruption occurs when an advertising unit is inserted between
-segments of the primary article content.
+An In-content Advertising Interruption occurs when a technically confirmed
+advertising placement is positioned in the normal document flow between
+segments of primary editorial content within the validated Article Reading
+Region.
+
+The presence of advertising within the visible viewport does not by itself
+constitute a Content Interruption.
+
+Fixed, sticky, overlay, and interstitial advertising are not counted as
+in-content interruptions solely because they cover or intersect editorial
+content. Such formats are measured under A5 and A6 as applicable.
+
+A single advertising placement is counted once per article observation,
+regardless of how many sampled viewport states in which it is observed.
 
 ### Measurement
 
-Record:
+For each completed article observation, record:
 
-- number of in-content advertising interruptions
-- article text length
-- interruptions per 1,000 characters
-- approximate scroll distance between interruptions
+- number of unique in-content advertising interruptions;
+- article character count;
+- interruptions per 1,000 characters;
+- approximate document or scroll distance between consecutive interruptions,
+  where technically observable.
+
+Primary editorial text should be derived from the validated Article Reading
+Region. In the initial automated implementation, direct-child `P`, `H1`, `H2`,
+`H3`, and `H4` elements containing non-empty text are treated as primary
+editorial text.
+
+An advertising placement qualifies as an in-content interruption only when:
+
+1. it is technically confirmed as advertising;
+2. it is positioned within the normal document flow;
+3. it occurs within the validated Article Reading Region; and
+4. primary editorial text occurs before and after the placement in document
+   order.
+
+Repeated observation of the same advertising placement during scrolling must
+not increase the interruption count.
 
 ### Formula
 
 **Interruptions per 1,000 characters =
-In-content Ad Interruptions / Article Character Count × 1,000**
+Unique In-content Advertising Interruptions / Article Character Count × 1,000**
+
+### Measurement Status
+
+A final numerical A7 result must be reported only when the required Article
+Reading Region was completely observable.
+
+If the observation is incomplete, the final A7 result must not be reported as
+zero. Diagnostic evidence observed before interruption may be preserved
+separately.
 
 ### Output
 
 Example:
 
-Article length: 4,800 characters  
-In-content interruptions: 6  
-Interruptions / 1,000 characters: 1.25
+`Article Character Count: 4,800`
+
+`In-content Advertising Interruptions: 6`
+
+`Interruptions per 1,000 characters: 1.25`
+
+### Phase 1 Feasibility Validation
+
+Initial Phase 1 feasibility testing produced both positive and negative
+validation cases.
+
+In a completed A04 Mainichi Shimbun observation, three unique advertising
+placements were technically confirmed within the validated Article Reading
+Region and positioned in the normal document flow between primary editorial
+text occurring before and after each placement.
+
+The observation produced:
+
+- `Article Character Count: 844`
+- `In-content Advertising Interruptions: 3`
+- `Interruptions per 1,000 characters: 3.555`
+
+One of the three interruption positions contained multiple Google advertising
+slots within the same direct-child placement. These slots were counted as one
+Content Interruption because they occupied the same interruption position in
+the editorial flow.
+
+This provides a positive validation case demonstrating that A7 counts unique
+interruption positions rather than advertising slots or repeated observations
+of the same placement during scrolling.
+
+In a completed A01 Asahi Shimbun Digital observation, a technically confirmed
+advertising placement was observed within the validated Article Reading Region,
+but it did not occur between primary editorial text segments. No primary
+editorial text occurred before the placement in document order.
+
+Advertising positioned above, beside, or otherwise adjacent to primary
+editorial content does not constitute an A7 interruption unless the advertising
+placement separates primary editorial text segments in document order.
+
+The observation therefore produced:
+
+- `Article Character Count: 657`
+- `In-content Advertising Interruptions: 0`
+- `Interruptions per 1,000 characters: 0`
+
+This provides a negative validation case demonstrating that the presence of
+advertising within the Article Reading Region does not by itself constitute a
+Content Interruption.
+
+Together, these cases validate the distinction between advertising presence
+and interruption of the primary editorial flow. A5 measures viewport
+obstruction, A6 classifies intrusive advertising formats, and A7 measures
+in-content interruption positions.
 
 ### Limitation
 
-Recommendation modules, related articles, affiliate modules, and sponsored
-content may require separate classification.
+Recommendation modules, related articles, affiliate modules, sponsored
+content, and advertising whose relationship to the primary editorial flow
+cannot be established reliably require separate classification or remain
+unresolved.
 
 ---
 
