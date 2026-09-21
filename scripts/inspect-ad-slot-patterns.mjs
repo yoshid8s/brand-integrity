@@ -1,6 +1,146 @@
 import fs from "node:fs/promises";
 import { parse } from "csv-parse/sync";
-import { chromium } from "playwright";
+import { chromium, devices } from "playwright";
+
+function collectImageUrls(value, urls = new Set()) {
+  if (!value) {
+    return urls;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectImageUrls(item, urls);
+    }
+
+    return urls;
+  }
+
+  if (typeof value !== "object") {
+    return urls;
+  }
+
+  for (const [key, child] of Object.entries(value)) {
+    if (
+      key === "src" &&
+      typeof child === "string" &&
+      /^https?:\/\//i.test(child)
+    ) {
+      urls.add(child);
+    } else {
+      collectImageUrls(child, urls);
+    }
+  }
+
+  return urls;
+}
+
+function extensionFromContentType(contentType) {
+  const normalized = (contentType || "").split(";")[0].trim().toLowerCase();
+
+  switch (normalized) {
+    case "image/png":
+      return ".png";
+
+    case "image/jpeg":
+      return ".jpg";
+
+    case "image/webp":
+      return ".webp";
+
+    case "image/gif":
+      return ".gif";
+
+    case "image/avif":
+      return ".avif";
+
+    case "image/svg+xml":
+      return ".svg";
+
+    default:
+      return null;
+  }
+}
+
+async function archiveCreativeImages(
+  candidate,
+  evidenceDirectory,
+  captureName,
+) {
+  const imageUrls = [...collectImageUrls(candidate)];
+
+  if (imageUrls.length === 0) {
+    return {
+      status: "NO_IMAGES",
+      files: [],
+    };
+  }
+
+  const files = [];
+
+  for (const [index, url] of imageUrls.entries()) {
+    try {
+      const response = await fetch(url, {
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        files.push({
+          sourceUrl: url,
+          status: "FAILED",
+          httpStatus: response.status,
+          reason: `HTTP ${response.status}`,
+        });
+
+        continue;
+      }
+
+      const contentType = response.headers.get("content-type");
+      const extension = extensionFromContentType(contentType);
+
+      if (!extension) {
+        files.push({
+          sourceUrl: url,
+          status: "SKIPPED",
+          contentType,
+          reason: "Unsupported or unknown image Content-Type",
+        });
+
+        continue;
+      }
+
+      const fileName =
+        `${captureName}-creative-${String(index + 1).padStart(2, "0")}` +
+        extension;
+
+      const filePath = `${evidenceDirectory}/${fileName}`;
+
+      const buffer = Buffer.from(await response.arrayBuffer());
+
+      await fs.writeFile(filePath, buffer);
+
+      files.push({
+        sourceUrl: url,
+        status: "SAVED",
+        fileName,
+        contentType,
+        byteLength: buffer.length,
+      });
+    } catch (error) {
+      files.push({
+        sourceUrl: url,
+        status: "FAILED",
+        reason: error.message,
+      });
+    }
+  }
+
+  return {
+    status: files.some((file) => file.status === "SAVED")
+      ? "SAVED"
+      : "NOT_SAVED",
+    files,
+  };
+}
 
 const targetMediaId = process.argv[2] || null;
 
@@ -8,6 +148,15 @@ const repeatCount = Math.max(
   1,
   Number.parseInt(process.argv[3] || "1", 10) || 1,
 );
+
+const deviceCategory = process.argv[4] || "desktop";
+
+if (!["desktop", "mobile"].includes(deviceCategory)) {
+  throw new Error(
+    `Unsupported device category: ${deviceCategory}. ` +
+      `Use "desktop" or "mobile".`,
+  );
+}
 
 const articlesCsv = await fs.readFile("data/pilot-01-articles.csv", "utf8");
 
@@ -69,6 +218,7 @@ for (const article of articles) {
   const region = regions.find(
     (row) =>
       row.media_id === article.media_id &&
+      row.device_category === deviceCategory &&
       row.validation_status === "VALIDATED",
   );
 
@@ -91,10 +241,28 @@ for (const article of articles) {
   });
 }
 
-const viewport = {
-  width: 1440,
-  height: 900,
+const desktopContextOptions = {
+  viewport: {
+    width: 1440,
+    height: 900,
+  },
+  locale: "ja-JP",
+  timezoneId: "Asia/Tokyo",
+  deviceScaleFactor: 1,
 };
+
+const mobileDevice = devices["iPhone 13"];
+
+const mobileContextOptions = {
+  ...mobileDevice,
+  locale: "ja-JP",
+  timezoneId: "Asia/Tokyo",
+};
+
+const contextOptions =
+  deviceCategory === "mobile" ? mobileContextOptions : desktopContextOptions;
+
+const viewport = contextOptions.viewport;
 
 const initialWaitMs = 3000;
 const stepPx = Math.round(viewport.height * 0.25);
@@ -172,6 +340,11 @@ function calculateUnionArea(rectangles) {
   return totalArea;
 }
 
+const runId = new Date()
+  .toISOString()
+  .replace(/[-:]/g, "")
+  .replace(/\.\d{3}Z$/, "Z");
+
 const observations = selected.flatMap((article) =>
   Array.from({ length: repeatCount }, (_, index) => ({
     ...article,
@@ -188,12 +361,7 @@ try {
         `(observation ${article.observationIndex}/${repeatCount})`,
     );
 
-    const context = await browser.newContext({
-      viewport,
-      locale: "ja-JP",
-      timezoneId: "Asia/Tokyo",
-      deviceScaleFactor: 1,
-    });
+    const context = await browser.newContext(contextOptions);
 
     const page = await context.newPage();
 
@@ -208,6 +376,23 @@ try {
       const observedGoogleSlots = new Map();
       const observedOtherIframes = new Map();
       const states = [];
+
+      /*
+       * Advertising creative evidence capture
+       *
+       * Preserve visual evidence separately from A4-A7 classification.
+       * Capturing a candidate does not itself classify the element as advertising.
+       */
+      const capturedCreativeKeys = new Set();
+
+      const evidenceDirectory =
+        `evidence/ad-creatives/${article.media_id}/${deviceCategory}` +
+        `/run-${runId}` +
+        `/observation-${String(article.observationIndex).padStart(2, "0")}`;
+
+      await fs.mkdir(evidenceDirectory, {
+        recursive: true,
+      });
 
       let stalledScrollCount = 0;
       let scrollStatus = "COMPLETED";
@@ -345,11 +530,118 @@ try {
                 .map((iframe) => {
                   const iframeRect = iframe.getBoundingClientRect();
 
+                  /*
+                   * Creative / advertiser evidence
+                   *
+                   * Google advertising iframes may be same-origin accessible in
+                   * some observations and cross-origin inaccessible in others.
+                   *
+                   * Preserve only directly observable evidence here.
+                   * Advertiser identity is derived separately from this evidence.
+                   */
+                  let creativeEvidence = {
+                    accessible: false,
+                    bodyText: null,
+                    anchors: [],
+                    images: [],
+                    videos: [],
+                  };
+
+                  try {
+                    const iframeDocument =
+                      iframe.contentDocument ||
+                      iframe.contentWindow?.document ||
+                      null;
+
+                    if (iframeDocument) {
+                      const bodyText =
+                        (iframeDocument.body?.innerText || "")
+                          .trim()
+                          .slice(0, 5000) || null;
+
+                      const anchors = [
+                        ...iframeDocument.querySelectorAll("a"),
+                      ].map((anchor) => {
+                        const href =
+                          anchor.href || anchor.getAttribute("href") || null;
+
+                        let adUrl = null;
+                        let landingDomain = null;
+
+                        if (href) {
+                          try {
+                            const parsed = new URL(href);
+
+                            adUrl =
+                              parsed.searchParams.get("adurl") ||
+                              parsed.searchParams.get("url") ||
+                              null;
+
+                            if (adUrl) {
+                              try {
+                                landingDomain = new URL(adUrl).hostname;
+                              } catch {
+                                landingDomain = null;
+                              }
+                            }
+                          } catch {
+                            // Preserve the raw href even when URL parsing fails.
+                          }
+                        }
+
+                        return {
+                          text:
+                            (anchor.innerText || "").trim().slice(0, 1000) ||
+                            null,
+                          href,
+                          adUrl,
+                          landingDomain,
+                        };
+                      });
+
+                      const images = [
+                        ...iframeDocument.querySelectorAll("img"),
+                      ].map((image) => ({
+                        src:
+                          image.currentSrc || image.getAttribute("src") || null,
+                        alt: image.alt || null,
+                        width: image.naturalWidth || null,
+                        height: image.naturalHeight || null,
+                      }));
+
+                      const videos = [
+                        ...iframeDocument.querySelectorAll("video"),
+                      ].map((video) => ({
+                        src:
+                          video.currentSrc || video.getAttribute("src") || null,
+                        poster: video.getAttribute("poster") || null,
+                        width: video.videoWidth || null,
+                        height: video.videoHeight || null,
+                      }));
+
+                      creativeEvidence = {
+                        accessible: true,
+                        bodyText,
+                        anchors,
+                        images,
+                        videos,
+                      };
+                    }
+                  } catch {
+                    /*
+                     * Cross-origin advertising iframe.
+                     *
+                     * This is expected for many advertising creatives and is
+                     * not treated as a measurement error.
+                     */
+                  }
+
                   return {
                     id: iframe.id || null,
                     src: iframe.getAttribute("src"),
                     width: Math.round(iframeRect.width),
                     height: Math.round(iframeRect.height),
+                    creativeEvidence,
                   };
                 });
 
@@ -392,6 +684,379 @@ try {
               };
             });
 
+          /*
+           * A5/A6 — OGY fixed/sticky advertising presentation
+           *
+           * OGY mobile advertising observed on A01 uses a presentation
+           * container whose position becomes fixed after the creative is
+           * loaded. The creative iframe itself may remain position: static.
+           *
+           * Require multiple structural signals before treating the
+           * presentation as confirmed advertising evidence:
+           *
+           * - container ID begins with ogy-root-container-
+           * - container class identifies an OGY advertising presentation
+           * - an OGY iframe exists inside the container
+           * - presentation is fixed or sticky
+           * - presentation is visible and intersects the viewport
+           *
+           * The rule identifies the advertising presentation only. It does
+           * not infer advertiser identity, transaction type, or creative type.
+           */
+          const ogyAdvertisingPresentations = [
+            ...document.querySelectorAll("[id^='ogy-root-container-']"),
+          ]
+            .filter((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+
+              const iframe = element.querySelector("iframe[id^='ogy-iframe-']");
+
+              if (!iframe) {
+                return false;
+              }
+
+              const iframeRect = iframe.getBoundingClientRect();
+              const iframeStyle = getComputedStyle(iframe);
+
+              const containerVisible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                style.display !== "none" &&
+                style.visibility !== "hidden" &&
+                style.opacity !== "0";
+
+              const iframeVisible =
+                iframeRect.width > 0 &&
+                iframeRect.height > 0 &&
+                iframeStyle.display !== "none" &&
+                iframeStyle.visibility !== "hidden" &&
+                iframeStyle.opacity !== "0";
+
+              const intersectsViewport =
+                rect.bottom > 0 &&
+                rect.top < window.innerHeight &&
+                rect.right > 0 &&
+                rect.left < window.innerWidth;
+
+              return (
+                ["fixed", "sticky"].includes(style.position) &&
+                containerVisible &&
+                iframeVisible &&
+                intersectsViewport
+              );
+            })
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+
+              const iframe = element.querySelector("iframe[id^='ogy-iframe-']");
+
+              const iframeRect = iframe.getBoundingClientRect();
+              const iframeStyle = getComputedStyle(iframe);
+
+              return {
+                id: element.id || null,
+                className: element.className || null,
+                iframeId: iframe.id || null,
+                iframeSrc: iframe.getAttribute("src") || null,
+
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                viewportTop: Math.round(rect.top),
+                viewportBottom: Math.round(rect.bottom),
+                viewportLeft: Math.round(rect.left),
+                viewportRight: Math.round(rect.right),
+
+                iframeWidth: Math.round(iframeRect.width),
+                iframeHeight: Math.round(iframeRect.height),
+                iframeDisplay: iframeStyle.display,
+                iframeVisibility: iframeStyle.visibility,
+
+                position: style.position,
+                zIndex: style.zIndex,
+
+                detectionMethod:
+                  "ogy-fixed-sticky-visible-iframe-advertising-presentation",
+              };
+            });
+
+          /*
+           * A5/A6 — Celtra advertising presentation
+           *
+           * Detect a rendered Celtra advertising presentation from explicit
+           * DOM structure observed during A02 mobile feasibility testing.
+           *
+           * Require multiple structural signals:
+           *
+           * - host class identifies a Celtra advertising presentation
+           * - .celtra-content exists inside the host
+           * - a visible iframe exists inside .celtra-content
+           * - the presentation intersects the viewport
+           *
+           * Geometry is recorded separately from advertising identification.
+           * Presentation size must not itself be used to infer advertising.
+           *
+           * This rule identifies advertising presentation evidence only.
+           * It does not infer advertiser identity, transaction type,
+           * campaign type, or creative type.
+           */
+          const celtraAdvertisingPresentations = [
+            ...document.querySelectorAll(".celtra-ad-v3.celtra-ad-inline-host"),
+          ]
+            .map((host) => {
+              const content = host.querySelector(".celtra-content");
+
+              if (!content) {
+                return null;
+              }
+
+              const iframe = content.querySelector("iframe");
+
+              if (!iframe) {
+                return null;
+              }
+
+              const hostRect = host.getBoundingClientRect();
+              const hostStyle = getComputedStyle(host);
+
+              const contentRect = content.getBoundingClientRect();
+              const contentStyle = getComputedStyle(content);
+
+              const iframeRect = iframe.getBoundingClientRect();
+              const iframeStyle = getComputedStyle(iframe);
+
+              const hostVisible =
+                hostRect.width > 0 &&
+                hostRect.height > 0 &&
+                hostStyle.display !== "none" &&
+                hostStyle.visibility !== "hidden" &&
+                hostStyle.opacity !== "0";
+
+              const contentVisible =
+                contentRect.width > 0 &&
+                contentRect.height > 0 &&
+                contentStyle.display !== "none" &&
+                contentStyle.visibility !== "hidden" &&
+                contentStyle.opacity !== "0";
+
+              const iframeVisible =
+                iframeRect.width > 0 &&
+                iframeRect.height > 0 &&
+                iframeStyle.display !== "none" &&
+                iframeStyle.visibility !== "hidden" &&
+                iframeStyle.opacity !== "0";
+
+              const intersectsViewport =
+                contentRect.bottom > 0 &&
+                contentRect.top < window.innerHeight &&
+                contentRect.right > 0 &&
+                contentRect.left < window.innerWidth;
+
+              if (
+                !hostVisible ||
+                !contentVisible ||
+                !iframeVisible ||
+                !intersectsViewport
+              ) {
+                return null;
+              }
+
+              return {
+                hostId: host.id || null,
+                hostClassName:
+                  typeof host.className === "string" ? host.className : null,
+
+                contentClassName:
+                  typeof content.className === "string"
+                    ? content.className
+                    : null,
+
+                iframeId: iframe.id || null,
+                iframeSrc: iframe.getAttribute("src") || null,
+
+                width: Math.round(contentRect.width),
+                height: Math.round(contentRect.height),
+                viewportTop: Math.round(contentRect.top),
+                viewportBottom: Math.round(contentRect.bottom),
+                viewportLeft: Math.round(contentRect.left),
+                viewportRight: Math.round(contentRect.right),
+
+                iframeWidth: Math.round(iframeRect.width),
+                iframeHeight: Math.round(iframeRect.height),
+
+                position: contentStyle.position,
+                zIndex: contentStyle.zIndex,
+
+                detectionMethod:
+                  "celtra-visible-iframe-advertising-presentation",
+              };
+            })
+            .filter(Boolean);
+
+          /*
+           * Native / in-feed advertising presentations
+           *
+           * Detect publisher-declared in-feed advertising structures from
+           * explicit DOM evidence.
+           *
+           * Pilot 01 currently includes a Nikkei implementation using:
+           *
+           *   data-kad="true"
+           *   data-kad-type="infeed"
+           *
+           * These attributes identify the observed presentation structure.
+           * Additional PR-label, click-tracking, impression-tracking, and
+           * creative-image evidence is preserved independently.
+           *
+           * This does not infer transaction type, advertiser identity,
+           * campaign type, or commercial arrangement.
+           */
+          const nativeAdvertisingCandidates = [
+            ...document.querySelectorAll(
+              '[data-kad="true"][data-kad-type="infeed"]',
+            ),
+          ].map((element) => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+
+            const links = [...element.querySelectorAll("a[href]")].map(
+              (link) => ({
+                href: link.href || link.getAttribute("href") || null,
+                text: (link.innerText || "").trim().slice(0, 1000) || null,
+              }),
+            );
+
+            const images = [...element.querySelectorAll("img")].map(
+              (image) => ({
+                src: image.currentSrc || image.getAttribute("src") || null,
+                alt: image.getAttribute("alt") || null,
+                width: image.naturalWidth || null,
+                height: image.naturalHeight || null,
+              }),
+            );
+
+            const prEvidence = images.filter(
+              (image) => (image.alt || "").trim().toUpperCase() === "PR",
+            );
+
+            const clickEvidence = links.filter((link) => {
+              try {
+                const url = new URL(link.href);
+
+                return (
+                  url.hostname === "nkis.nikkei.com" &&
+                  url.pathname.startsWith("/pub_click/")
+                );
+              } catch {
+                return false;
+              }
+            });
+
+            const impressionEvidence = images.filter((image) => {
+              try {
+                const url = new URL(image.src);
+
+                return (
+                  url.hostname === "nkis.nikkei.com" && url.pathname === "/imp"
+                );
+              } catch {
+                return false;
+              }
+            });
+
+            const creativeImages = images.filter((image) => {
+              try {
+                const url = new URL(image.src);
+
+                return (
+                  url.hostname === "nkispa.nikkei.com" &&
+                  !url.pathname.startsWith("/imp")
+                );
+              } catch {
+                return false;
+              }
+            });
+
+            const insideReadingRegion =
+              readingRegion === element || readingRegion.contains(element);
+
+            return {
+              detectionMethod: "nikkei-kad-infeed",
+
+              kadId: element.getAttribute("data-kad-id") || null,
+              kadType: element.getAttribute("data-kad-type") || null,
+              kadViewable: element.getAttribute("data-kad-viewable") || null,
+              kadInfeedTitleStyleType:
+                element.getAttribute("data-kad-infeed-title-style-type") ||
+                null,
+
+              prLabelPresent: prEvidence.length > 0,
+
+              text: (element.innerText || "").trim().slice(0, 2000) || null,
+
+              clickEvidence,
+              impressionEvidence,
+              creativeImages,
+
+              insideReadingRegion,
+
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              viewportTop: Math.round(rect.top),
+              viewportBottom: Math.round(rect.bottom),
+              viewportLeft: Math.round(rect.left),
+              viewportRight: Math.round(rect.right),
+
+              position: style.position,
+              display: style.display,
+              visibility: style.visibility,
+            };
+          });
+
+          /*
+           * Native / in-feed advertising presentations
+           *
+           * Detect rendered advertising presentations that expose explicit
+           * advertising-delivery evidence in the DOM.
+           *
+           * data-kad="true" identifies the delivery container observed on
+           * Nikkei. Confirmation requires both click and impression evidence;
+           * the KAD marker alone is not sufficient.
+           *
+           * This detector records advertising evidence only. It does not infer
+           * advertiser identity, transaction type, or whether the presentation
+           * is inside the Article Reading Region.
+           */
+
+          const nativeAdvertisingPresentations = nativeAdvertisingCandidates
+            .filter((candidate) => {
+              /*
+               * A KAD container alone is not sufficient evidence that an
+               * advertising presentation was actually rendered.
+               *
+               * Confirm the presentation only when the observed DOM contains
+               * explicit advertising-delivery evidence.
+               *
+               * For the Nikkei KAD implementation observed in Pilot 01:
+               *
+               * - /pub_click/ provides click-tracking evidence
+               * - /imp provides impression-tracking evidence
+               *
+               * PR labels and creative images are preserved as supporting
+               * evidence, but are not required for confirmation because some
+               * KAD presentation types may not expose them.
+               */
+              return (
+                candidate.clickEvidence.length > 0 &&
+                candidate.impressionEvidence.length > 0
+              );
+            })
+            .map((presentation) => ({
+              ...presentation,
+              detectionMethod: "nikkei-kad-confirmed-advertising-presentation",
+            }));
+
           const otherIframes = [...document.querySelectorAll("iframe")]
             .filter((element) => {
               const rect = element.getBoundingClientRect();
@@ -432,6 +1097,63 @@ try {
               const identifiableAdIframe =
                 Boolean(id) && id.startsWith("fif_slot__");
 
+              /*
+               * A5/A6 — Fixed/sticky presentation ancestor
+               *
+               * An advertising iframe may itself remain position: static while a
+               * containing presentation element is fixed or sticky in the viewport.
+               * Preserve the nearest such ancestor as candidate obstruction evidence.
+               *
+               * This is evidence only. Advertising association is determined separately
+               * and must not be inferred solely from fixed/sticky positioning.
+               */
+              let presentationAncestor = element.parentElement;
+              let fixedOrStickyAncestor = null;
+
+              while (presentationAncestor) {
+                const ancestorStyle = getComputedStyle(presentationAncestor);
+
+                if (["fixed", "sticky"].includes(ancestorStyle.position)) {
+                  const ancestorRect =
+                    presentationAncestor.getBoundingClientRect();
+
+                  const visible =
+                    ancestorRect.width > 0 &&
+                    ancestorRect.height > 0 &&
+                    ancestorStyle.display !== "none" &&
+                    ancestorStyle.visibility !== "hidden";
+
+                  const intersectsViewport =
+                    ancestorRect.bottom > 0 &&
+                    ancestorRect.top < window.innerHeight &&
+                    ancestorRect.right > 0 &&
+                    ancestorRect.left < window.innerWidth;
+
+                  if (visible && intersectsViewport) {
+                    fixedOrStickyAncestor = {
+                      tag: presentationAncestor.tagName,
+                      id: presentationAncestor.id || null,
+                      className:
+                        typeof presentationAncestor.className === "string"
+                          ? presentationAncestor.className
+                          : null,
+                      position: ancestorStyle.position,
+                      zIndex: ancestorStyle.zIndex,
+                      width: Math.round(ancestorRect.width),
+                      height: Math.round(ancestorRect.height),
+                      viewportTop: Math.round(ancestorRect.top),
+                      viewportBottom: Math.round(ancestorRect.bottom),
+                      viewportLeft: Math.round(ancestorRect.left),
+                      viewportRight: Math.round(ancestorRect.right),
+                    };
+
+                    break;
+                  }
+                }
+
+                presentationAncestor = presentationAncestor.parentElement;
+              }
+
               return {
                 id,
                 src,
@@ -451,8 +1173,208 @@ try {
                 detectionMethod: identifiableAdIframe
                   ? "identifiable-ad-iframe"
                   : "generic-iframe",
+
+                fixedOrStickyAncestor,
               };
             });
+
+          /*
+           * Diagnostic — visible fixed/sticky elements
+           *
+           * Preserve all visible fixed/sticky viewport elements so that
+           * advertising evidence rules can be validated independently from
+           * presentation detection.
+           */
+          const fixedStickyCandidates = [...document.querySelectorAll("*")]
+            .filter((element) => {
+              const style = getComputedStyle(element);
+
+              if (!["fixed", "sticky"].includes(style.position)) {
+                return false;
+              }
+
+              const rect = element.getBoundingClientRect();
+
+              return (
+                rect.width > 0 &&
+                rect.height > 0 &&
+                style.display !== "none" &&
+                style.visibility !== "hidden" &&
+                rect.bottom > 0 &&
+                rect.top < window.innerHeight &&
+                rect.right > 0 &&
+                rect.left < window.innerWidth
+              );
+            })
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+
+              return {
+                tag: element.tagName,
+                id: element.id || null,
+                className:
+                  typeof element.className === "string"
+                    ? element.className
+                    : null,
+
+                position: style.position,
+                zIndex: style.zIndex,
+
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                viewportTop: Math.round(rect.top),
+                viewportBottom: Math.round(rect.bottom),
+                viewportLeft: Math.round(rect.left),
+                viewportRight: Math.round(rect.right),
+
+                iframeCount: element.querySelectorAll("iframe").length,
+
+                imageCount: element.querySelectorAll("img").length,
+
+                linkCount: element.querySelectorAll("a[href]").length,
+
+                text: (element.innerText || "")
+                  .trim()
+                  .replace(/\s+/g, " ")
+                  .slice(0, 300),
+
+                htmlPreview: element.outerHTML
+                  .replace(/\s+/g, " ")
+                  .slice(0, 1000),
+              };
+            });
+
+          /*
+           * A5/A6 — Confirmed fixed/sticky advertising presentations
+           *
+           * Detect visible fixed/sticky viewport elements whose descendants
+           * provide independent advertising evidence.
+           *
+           * Fixed/sticky positioning alone is not sufficient. A presentation
+           * is confirmed only when its subtree contains advertising-delivery,
+           * creative, or click-destination evidence.
+           *
+           * This intentionally avoids media-specific selectors such as
+           * #Tsuibi so that the same rule can be evaluated across Pilot 01
+           * properties.
+           */
+          const fixedAdvertisingPresentations = [
+            ...document.querySelectorAll("*"),
+          ]
+            .filter((element) => {
+              const style = getComputedStyle(element);
+
+              if (!["fixed", "sticky"].includes(style.position)) {
+                return false;
+              }
+
+              const rect = element.getBoundingClientRect();
+
+              const visible =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                style.display !== "none" &&
+                style.visibility !== "hidden";
+
+              const intersectsViewport =
+                rect.bottom > 0 &&
+                rect.top < window.innerHeight &&
+                rect.right > 0 &&
+                rect.left < window.innerWidth;
+
+              return visible && intersectsViewport;
+            })
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              const style = getComputedStyle(element);
+
+              const descendantIframes = [...element.querySelectorAll("iframe")];
+
+              const descendantImages = [...element.querySelectorAll("img")];
+
+              const descendantLinks = [...element.querySelectorAll("a[href]")];
+
+              const iframeEvidence = descendantIframes
+                .map((iframe) => ({
+                  id: iframe.id || null,
+                  src: iframe.getAttribute("src") || null,
+                }))
+                .filter(({ id, src }) => {
+                  const value = `${id || ""} ${src || ""}`.toLowerCase();
+
+                  return (
+                    value.includes("google_ads_iframe") ||
+                    value.includes("doubleclick") ||
+                    value.includes("googlesyndication") ||
+                    value.includes("fif_slot__")
+                  );
+                });
+
+              const imageEvidence = descendantImages
+                .map((image) => ({
+                  src: image.currentSrc || image.getAttribute("src") || null,
+                  alt: image.getAttribute("alt") || null,
+                }))
+                .filter(({ src }) => {
+                  const value = (src || "").toLowerCase();
+
+                  return (
+                    value.includes("googlesyndication") ||
+                    value.includes("doubleclick")
+                  );
+                });
+
+              const clickEvidence = descendantLinks
+                .map((link) => ({
+                  href: link.href || link.getAttribute("href") || null,
+                  text: (link.innerText || "").trim().slice(0, 200),
+                }))
+                .filter(({ href }) => {
+                  const value = (href || "").toLowerCase();
+
+                  return (
+                    value.includes("doubleclick") ||
+                    value.includes("googleadservices") ||
+                    value.includes("googlesyndication")
+                  );
+                });
+
+              const advertisingEvidenceCount =
+                iframeEvidence.length +
+                imageEvidence.length +
+                clickEvidence.length;
+
+              if (advertisingEvidenceCount === 0) {
+                return null;
+              }
+
+              return {
+                tag: element.tagName,
+                id: element.id || null,
+                className:
+                  typeof element.className === "string"
+                    ? element.className
+                    : null,
+                position: style.position,
+                zIndex: style.zIndex,
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+                viewportTop: Math.round(rect.top),
+                viewportBottom: Math.round(rect.bottom),
+                viewportLeft: Math.round(rect.left),
+                viewportRight: Math.round(rect.right),
+
+                advertisingEvidenceCount,
+
+                evidence: {
+                  iframes: iframeEvidence,
+                  images: imageEvidence,
+                  clicks: clickEvidence,
+                },
+              };
+            })
+            .filter(Boolean);
 
           /*
            * A5 — Editorial text geometry
@@ -494,6 +1416,12 @@ try {
               height: Math.round(regionRect.height),
             },
             googleSlots,
+            ogyAdvertisingPresentations,
+            celtraAdvertisingPresentations,
+            nativeAdvertisingCandidates,
+            nativeAdvertisingPresentations,
+            fixedStickyCandidates,
+            fixedAdvertisingPresentations,
             otherIframes,
             editorialTextRects,
           };
@@ -547,7 +1475,7 @@ try {
           }
         }
 
-        const a5ConfirmedRects = state.googleSlots
+        const googleA5ConfirmedRects = state.googleSlots
           .filter(
             (slot) =>
               slot.renderedGoogleIframeCount > 0 &&
@@ -555,6 +1483,33 @@ try {
           )
           .map((slot) => clipRectToViewport(slot, viewport))
           .filter(Boolean);
+
+        const ogyA5ConfirmedRects = state.ogyAdvertisingPresentations
+          .map((presentation) => clipRectToViewport(presentation, viewport))
+          .filter(Boolean);
+
+        const celtraA5ConfirmedRects = state.celtraAdvertisingPresentations
+          .map((presentation) => clipRectToViewport(presentation, viewport))
+          .filter(Boolean);
+
+        const fixedPresentationA5ConfirmedRects =
+          state.fixedAdvertisingPresentations
+            .map((presentation) => clipRectToViewport(presentation, viewport))
+            .filter(Boolean);
+
+        /*
+         * A5 — Confirmed advertising obstruction geometry
+         *
+         * Combine confirmed fixed/sticky advertising presentations from
+         * multiple detection paths. calculateUnionArea() prevents overlapping
+         * detections of the same presentation from being double-counted.
+         */
+        const a5ConfirmedRects = [
+          ...googleA5ConfirmedRects,
+          ...ogyA5ConfirmedRects,
+          ...celtraA5ConfirmedRects,
+          ...fixedPresentationA5ConfirmedRects,
+        ];
 
         const advertisingObstructionArea = calculateUnionArea(a5ConfirmedRects);
 
@@ -639,11 +1594,192 @@ try {
         const viewportObstructionRatio =
           viewportArea > 0 ? advertisingObstructionArea / viewportArea : null;
 
+        /*
+         * Advertising creative evidence capture
+         *
+         * This evidence layer is intentionally independent from A4-A7.
+         * A screenshot records what was presented to the user; it does not
+         * by itself establish advertiser identity or advertising status.
+         */
+
+        const evidenceCandidates = [];
+
+        for (const slot of state.googleSlots) {
+          if (slot.renderedGoogleIframeCount <= 0) {
+            continue;
+          }
+
+          evidenceCandidates.push({
+            type: "GOOGLE_SLOT",
+            key: `google:${slot.id || slot.queryId}`,
+            id: slot.id || null,
+            queryId: slot.queryId || null,
+            geometry: {
+              top: slot.viewportTop,
+              bottom: slot.viewportBottom,
+              left: slot.viewportLeft,
+              right: slot.viewportRight,
+              width: slot.width,
+              height: slot.height,
+            },
+            evidence: {
+              renderedGoogleIframes: slot.renderedGoogleIframes,
+            },
+          });
+        }
+
+        for (const presentation of state.ogyAdvertisingPresentations) {
+          evidenceCandidates.push({
+            type: "OGY_PRESENTATION",
+            key: `ogy:${presentation.id || presentation.iframeId}`,
+            id: presentation.id || null,
+            geometry: {
+              top: presentation.viewportTop,
+              bottom: presentation.viewportBottom,
+              left: presentation.viewportLeft,
+              right: presentation.viewportRight,
+              width: presentation.width,
+              height: presentation.height,
+            },
+            evidence: presentation,
+          });
+        }
+
+        for (const presentation of state.fixedAdvertisingPresentations) {
+          const imageFingerprint = (presentation.evidence?.images || [])
+            .map((image) => image.src)
+            .filter(Boolean)
+            .join("|");
+
+          const clickFingerprint = (presentation.evidence?.clicks || [])
+            .map((click) => click.href)
+            .filter(Boolean)
+            .join("|");
+
+          const fingerprint =
+            imageFingerprint ||
+            clickFingerprint ||
+            presentation.id ||
+            presentation.className ||
+            "unknown";
+
+          evidenceCandidates.push({
+            type: "FIXED_ADVERTISING_PRESENTATION",
+            key: `fixed:${fingerprint}`,
+            id: presentation.id || null,
+            geometry: {
+              top: presentation.viewportTop,
+              bottom: presentation.viewportBottom,
+              left: presentation.viewportLeft,
+              right: presentation.viewportRight,
+              width: presentation.width,
+              height: presentation.height,
+            },
+            evidence: presentation,
+          });
+        }
+
+        /*
+         * Preserve the full-screen interactive layer separately.
+         *
+         * This is intentionally classified as UNRESOLVED here. Its presence
+         * proves an interactive overlay was shown, but does not by itself
+         * prove that the overlay was advertising.
+         */
+        const interactiveOverlay = state.fixedStickyCandidates.find(
+          (candidate) => candidate.id === "hs-web-interactives-top-anchor",
+        );
+
+        if (interactiveOverlay) {
+          evidenceCandidates.push({
+            type: "INTERACTIVE_OVERLAY",
+            key: "interactive:hs-web-interactives-top-anchor",
+            id: interactiveOverlay.id,
+            advertisingStatus: "UNRESOLVED",
+            geometry: {
+              top: interactiveOverlay.viewportTop,
+              bottom: interactiveOverlay.viewportBottom,
+              left: interactiveOverlay.viewportLeft,
+              right: interactiveOverlay.viewportRight,
+              width: interactiveOverlay.width,
+              height: interactiveOverlay.height,
+            },
+            evidence: interactiveOverlay,
+          });
+        }
+
+        for (const candidate of evidenceCandidates) {
+          if (capturedCreativeKeys.has(candidate.key)) {
+            continue;
+          }
+
+          capturedCreativeKeys.add(candidate.key);
+
+          const safeType = candidate.type
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+
+          const captureName = `step-${String(i).padStart(3, "0")}-${safeType}`;
+
+          const viewportPath = `${evidenceDirectory}/${captureName}-viewport.png`;
+
+          const evidencePath = `${evidenceDirectory}/${captureName}-evidence.json`;
+
+          await page.screenshot({
+            path: viewportPath,
+            fullPage: false,
+          });
+
+          /*
+           * Creative archive
+           *
+           * Preserve directly observable image creatives as local evidence.
+           * The archive is independent from advertiser identification:
+           * saving an image does not establish who the advertiser is.
+           *
+           * Content-Type, rather than the source URL suffix, determines the
+           * local file extension because advertising image URLs frequently
+           * contain no filename extension.
+           */
+          const creativeArchive = await archiveCreativeImages(
+            candidate,
+            evidenceDirectory,
+            captureName,
+          );
+
+          await fs.writeFile(
+            evidencePath,
+            JSON.stringify(
+              {
+                mediaId: article.media_id,
+                mediaProperty: article.media_property,
+                articleUrl: article.final_resolved_url || article.article_url,
+                deviceCategory,
+                observationIndex: article.observationIndex,
+                step: i,
+                scrollY: state.scrollY,
+                capturedAt: new Date().toISOString(),
+                candidate,
+                creativeArchive,
+              },
+              null,
+              2,
+            ),
+            "utf8",
+          );
+        }
+
         states.push({
           index: i,
           scrollY: state.scrollY,
           documentHeight: state.documentHeight,
           readingRegion: state.readingRegion,
+
+          measurementRegion:
+            state.readingRegion.viewportBottom <= viewport.height
+              ? "POST_ARTICLE"
+              : "ARTICLE_READING_REGION",
           googleSlotCount: state.googleSlots.length,
           otherIframeCount: state.otherIframes.length,
 
@@ -672,6 +1808,100 @@ try {
               slot.qualifiesAsInContentInterruption,
           })),
 
+          ogyAdvertisingPresentations: state.ogyAdvertisingPresentations.map(
+            (presentation) => ({
+              id: presentation.id,
+              className: presentation.className,
+              iframeId: presentation.iframeId,
+              iframeSrc: presentation.iframeSrc,
+              viewportTop: presentation.viewportTop,
+              viewportBottom: presentation.viewportBottom,
+              viewportLeft: presentation.viewportLeft,
+              viewportRight: presentation.viewportRight,
+              width: presentation.width,
+              height: presentation.height,
+              position: presentation.position,
+              zIndex: presentation.zIndex,
+              detectionMethod: presentation.detectionMethod,
+            }),
+          ),
+
+          celtraAdvertisingPresentations:
+            state.celtraAdvertisingPresentations.map((presentation) => ({
+              hostId: presentation.hostId,
+              hostClassName: presentation.hostClassName,
+              contentClassName: presentation.contentClassName,
+              iframeId: presentation.iframeId,
+              iframeSrc: presentation.iframeSrc,
+
+              viewportTop: presentation.viewportTop,
+              viewportBottom: presentation.viewportBottom,
+              viewportLeft: presentation.viewportLeft,
+              viewportRight: presentation.viewportRight,
+              width: presentation.width,
+              height: presentation.height,
+
+              iframeWidth: presentation.iframeWidth,
+              iframeHeight: presentation.iframeHeight,
+
+              position: presentation.position,
+              zIndex: presentation.zIndex,
+
+              detectionMethod: presentation.detectionMethod,
+            })),
+
+          nativeAdvertisingCandidates: state.nativeAdvertisingCandidates.map(
+            (candidate) => ({
+              kadId: candidate.kadId,
+              kadType: candidate.kadType,
+              kadViewable: candidate.kadViewable,
+              kadInfeedTitleStyleType: candidate.kadInfeedTitleStyleType,
+              prLabelPresent: candidate.prLabelPresent,
+              text: candidate.text,
+              clickEvidence: candidate.clickEvidence,
+              impressionEvidence: candidate.impressionEvidence,
+              creativeImages: candidate.creativeImages,
+              insideReadingRegion: candidate.insideReadingRegion,
+              viewportTop: candidate.viewportTop,
+              viewportBottom: candidate.viewportBottom,
+              viewportLeft: candidate.viewportLeft,
+              viewportRight: candidate.viewportRight,
+              width: candidate.width,
+              height: candidate.height,
+              position: candidate.position,
+              display: candidate.display,
+              visibility: candidate.visibility,
+              detectionMethod: candidate.detectionMethod,
+            }),
+          ),
+
+          nativeAdvertisingPresentations:
+            state.nativeAdvertisingPresentations.map((presentation) => ({
+              kadId: presentation.kadId,
+              kadType: presentation.kadType,
+              kadViewable: presentation.kadViewable,
+              kadInfeedTitleStyleType: presentation.kadInfeedTitleStyleType,
+              prLabelPresent: presentation.prLabelPresent,
+              text: presentation.text,
+              clickEvidence: presentation.clickEvidence,
+              impressionEvidence: presentation.impressionEvidence,
+              creativeImages: presentation.creativeImages,
+              insideReadingRegion: presentation.insideReadingRegion,
+              viewportTop: presentation.viewportTop,
+              viewportBottom: presentation.viewportBottom,
+              viewportLeft: presentation.viewportLeft,
+              viewportRight: presentation.viewportRight,
+              width: presentation.width,
+              height: presentation.height,
+              position: presentation.position,
+              display: presentation.display,
+              visibility: presentation.visibility,
+              detectionMethod: presentation.detectionMethod,
+            })),
+
+          fixedStickyCandidates: state.fixedStickyCandidates,
+          fixedAdvertisingPresentations: state.fixedAdvertisingPresentations,
+
           otherIframes: state.otherIframes.map((frame) => ({
             id: frame.id,
             src: frame.src,
@@ -698,10 +1928,24 @@ try {
           },
         });
 
+        /*
+         * Reading-region / page-end state
+         *
+         * A4 and A7 remain scoped to the Article Reading Region.
+         * A5 and A6 continue observing the page after the reading region
+         * so that post-article advertising presentations can be measured.
+         */
         const reachedReadingRegionEnd =
           state.readingRegion.viewportBottom <= viewport.height;
 
-        if (reachedReadingRegionEnd) {
+        const maxScrollYBefore = Math.max(
+          0,
+          state.documentHeight - viewport.height,
+        );
+
+        const reachedPageEnd = state.scrollY >= maxScrollYBefore - 2;
+
+        if (reachedPageEnd) {
           break;
         }
 
@@ -720,6 +1964,19 @@ try {
         const scrollYAfter = await page.evaluate(() =>
           Math.round(window.scrollY),
         );
+
+        const documentHeightAfter = await page.evaluate(
+          () => document.documentElement.scrollHeight,
+        );
+
+        const maxScrollYAfter = Math.max(
+          0,
+          documentHeightAfter - viewport.height,
+        );
+
+        if (scrollYAfter >= maxScrollYAfter - 2) {
+          break;
+        }
 
         if (scrollYAfter === scrollYBefore) {
           stalledScrollCount += 1;
@@ -805,6 +2062,15 @@ try {
       const automaticallyConfirmedAdUnits = [];
 
       for (const slot of observedGoogleSlots.values()) {
+        /*
+         * A4 is scoped strictly to the Article Reading Region.
+         * Advertising first observed outside that region may be relevant
+         * to A5/A6, but must not increase the A4 ad-unit count.
+         */
+        if (!slot.insideReadingRegion) {
+          continue;
+        }
+
         const renderedIframes = (slot.renderedGoogleIframes || []).filter(
           (iframe) => iframe.width > 2 && iframe.height > 1,
         );
@@ -831,6 +2097,13 @@ try {
       const unresolvedAdCandidates = [];
 
       for (const frame of observedOtherIframes.values()) {
+        /*
+         * Keep A4 scoped to the Article Reading Region.
+         */
+        if (!frame.insideReadingRegion) {
+          continue;
+        }
+
         if (frame.a4Classification === "AUTOMATICALLY_CONFIRMED") {
           automaticallyConfirmedAdUnits.push({
             source: "NON_GOOGLE",
@@ -1048,12 +2321,15 @@ try {
        * A6 classifies the observable intrusive advertising format.
        */
 
-      const stickyAdvertisingDetected = states.some((state) =>
-        state.googleSlots.some(
-          (slot) =>
-            slot.renderedGoogleIframeCount > 0 &&
-            ["fixed", "sticky"].includes(slot.position),
-        ),
+      const stickyAdvertisingDetected = states.some(
+        (state) =>
+          state.googleSlots.some(
+            (slot) =>
+              slot.renderedGoogleIframeCount > 0 &&
+              ["fixed", "sticky"].includes(slot.position),
+          ) ||
+          state.ogyAdvertisingPresentations.length > 0 ||
+          state.fixedAdvertisingPresentations.length > 0,
       );
 
       const advertisingCoveringEditorialContentDetected = states.some(
@@ -1280,6 +2556,9 @@ try {
 console.log(
   JSON.stringify(
     {
+      deviceCategory,
+      deviceProfile:
+        deviceCategory === "mobile" ? "iPhone 13" : "desktop-1440x900",
       viewport,
       initialWaitMs,
       stepPx,
