@@ -267,7 +267,7 @@ const viewport = contextOptions.viewport;
 const initialWaitMs = 3000;
 const stepPx = Math.round(viewport.height * 0.25);
 const stepWaitMs = 1000;
-const maxScrollSteps = 100;
+const maxScrollSteps = 200;
 
 const browser = await chromium.launch({
   headless: false,
@@ -395,7 +395,21 @@ try {
       });
 
       let stalledScrollCount = 0;
-      let scrollStatus = "COMPLETED";
+      let scrollStatus = "IN_PROGRESS";
+
+      /*
+       * Post-article observation window
+       *
+       * A4 and A7 are scoped to the validated Article Reading Region.
+       * A5 and A6 continue for a finite distance after leaving that region
+       * so that post-article advertising experiences can be observed without
+       * following publisher infinite-scroll feeds indefinitely.
+       */
+      const postArticleViewportCount = 5;
+      const postArticleObservationDistance =
+        viewport.height * postArticleViewportCount;
+
+      let postArticleStartScrollY = null;
 
       const regionExists = await page.evaluate((selector) => {
         return Boolean(document.querySelector(selector));
@@ -1770,16 +1784,25 @@ try {
           );
         }
 
+        const measurementRegion =
+          state.readingRegion.viewportBottom <= viewport.height
+            ? "POST_ARTICLE"
+            : "ARTICLE_READING_REGION";
+
+        if (
+          measurementRegion === "POST_ARTICLE" &&
+          postArticleStartScrollY === null
+        ) {
+          postArticleStartScrollY = state.scrollY;
+        }
+
         states.push({
           index: i,
           scrollY: state.scrollY,
           documentHeight: state.documentHeight,
           readingRegion: state.readingRegion,
 
-          measurementRegion:
-            state.readingRegion.viewportBottom <= viewport.height
-              ? "POST_ARTICLE"
-              : "ARTICLE_READING_REGION",
+          measurementRegion,
           googleSlotCount: state.googleSlots.length,
           otherIframeCount: state.otherIframes.length,
 
@@ -1929,14 +1952,30 @@ try {
         });
 
         /*
+         * Finite post-article observation window
+         *
+         * Stop after observing five viewport heights beyond the point where
+         * the validated Article Reading Region leaves the reading path.
+         * This prevents infinite/lazy post-article feeds from defining the
+         * measurement duration.
+         */
+        const reachedPostArticleObservationEnd =
+          postArticleStartScrollY !== null &&
+          state.scrollY - postArticleStartScrollY >=
+            postArticleObservationDistance;
+
+        if (reachedPostArticleObservationEnd) {
+          scrollStatus = "POST_ARTICLE_WINDOW_COMPLETED";
+          break;
+        }
+
+        /*
          * Reading-region / page-end state
          *
          * A4 and A7 remain scoped to the Article Reading Region.
          * A5 and A6 continue observing the page after the reading region
          * so that post-article advertising presentations can be measured.
          */
-        const reachedReadingRegionEnd =
-          state.readingRegion.viewportBottom <= viewport.height;
 
         const maxScrollYBefore = Math.max(
           0,
@@ -1946,6 +1985,7 @@ try {
         const reachedPageEnd = state.scrollY >= maxScrollYBefore - 2;
 
         if (reachedPageEnd) {
+          scrollStatus = "COMPLETED";
           break;
         }
 
@@ -1975,6 +2015,7 @@ try {
         );
 
         if (scrollYAfter >= maxScrollYAfter - 2) {
+          scrollStatus = "COMPLETED";
           break;
         }
 
@@ -1988,6 +2029,10 @@ try {
           scrollStatus = "SCROLL_STALLED";
           break;
         }
+      }
+
+      if (scrollStatus === "IN_PROGRESS") {
+        scrollStatus = "MAX_SCROLL_STEPS_REACHED";
       }
 
       /*
@@ -2040,9 +2085,13 @@ try {
         };
       });
 
+      const measurementCompleted =
+        scrollStatus === "COMPLETED" ||
+        scrollStatus === "POST_ARTICLE_WINDOW_COMPLETED";
+
       const measurementStatus = accessState.accessRestrictionDetected
         ? "PARTIALLY_OBSERVABLE_ACCESS_RESTRICTED"
-        : scrollStatus === "COMPLETED"
+        : measurementCompleted
           ? "COMPLETE"
           : scrollStatus === "SCROLL_STALLED"
             ? "INCOMPLETE_READING_EXPERIENCE"
