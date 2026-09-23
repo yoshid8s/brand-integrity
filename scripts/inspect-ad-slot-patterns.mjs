@@ -1485,7 +1485,35 @@ try {
               ...frame,
               firstObservedStep: i,
               firstObservedScrollY: state.scrollY,
+              observedGeometries: [
+                {
+                  width: frame.width,
+                  height: frame.height,
+                  step: i,
+                  scrollY: state.scrollY,
+                },
+              ],
             });
+          } else {
+            const existing = observedOtherIframes.get(key);
+
+            const geometryAlreadyObserved =
+              existing.observedGeometries?.some(
+                (geometry) =>
+                  geometry.width === frame.width &&
+                  geometry.height === frame.height,
+              ) ?? false;
+
+            if (!geometryAlreadyObserved) {
+              existing.observedGeometries ??= [];
+
+              existing.observedGeometries.push({
+                width: frame.width,
+                height: frame.height,
+                step: i,
+                scrollY: state.scrollY,
+              });
+            }
           }
         }
 
@@ -2174,6 +2202,7 @@ try {
             insideReadingRegion: frame.insideReadingRegion,
             firstObservedStep: frame.firstObservedStep,
             firstObservedScrollY: frame.firstObservedScrollY,
+            observedGeometries: frame.observedGeometries || [],
           });
         }
       }
@@ -2198,11 +2227,16 @@ try {
             return false;
           }
 
-          const widthMatches = Number(item.width) === candidate.width;
+          const geometryMatches =
+            candidate.observedGeometries?.some(
+              (geometry) =>
+                Number(item.width) === geometry.width &&
+                Number(item.height) === geometry.height,
+            ) ??
+            (Number(item.width) === candidate.width &&
+              Number(item.height) === candidate.height);
 
-          const heightMatches = Number(item.height) === candidate.height;
-
-          if (!widthMatches || !heightMatches) {
+          if (!geometryMatches) {
             return false;
           }
 
