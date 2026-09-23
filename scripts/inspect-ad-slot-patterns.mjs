@@ -2381,8 +2381,23 @@ try {
           state.fixedAdvertisingPresentations.length > 0,
       );
 
+      /*
+       * Covering advertising includes:
+       *
+       * 1. advertising geometrically overlapping editorial text; or
+       * 2. a viewport-scale advertising presentation that substantially
+       *    obstructs the Article Experience Window, including post-article
+       *    interstitial / overlay presentations.
+       *
+       * The second condition is intentionally derived from the A5
+       * obstruction measurement rather than from vendor-specific markup
+       * such as Celtra. This keeps the A6 classification media- and
+       * ad-technology-agnostic.
+       */
       const advertisingCoveringEditorialContentDetected = states.some(
-        (state) => state.a5?.coversEditorialText === true,
+        (state) =>
+          state.a5?.coversEditorialText === true ||
+          (state.a5?.viewportObstructionPercent ?? 0) >= 90,
       );
 
       /*
